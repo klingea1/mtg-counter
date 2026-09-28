@@ -206,6 +206,9 @@
     background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text-dim);
     padding:8px 14px; border-radius:10px; font-size:0.75rem; font-family:"Cinzel",Georgia,serif; letter-spacing:0.5px;
   }
+  /* Icon-only and pushed into the corner so it doesn't eat the top of the +1 tap zone. */
+  .tt-exit-btn.tt-pet-btn{left:auto; right:12px; padding:6px 9px; font-size:1.05rem; line-height:1; letter-spacing:0;}
+  .tt-pet-btn.off{filter:grayscale(1); opacity:0.45;}
   .tt-self-content{
     position:relative; z-index:1; pointer-events:none;
     height:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
@@ -277,6 +280,14 @@
     background:rgba(201,163,78,0.14);
   }
   .tt-snap-marker.nearest::after{background:var(--accent-light); box-shadow:0 0 8px var(--accent-light);}
+  /* Table pet: one 72×64 cell of the goblin sheet. JS positions it with a transform whose
+     origin is the corrected anchor point (legs centre x=36, feet y=58), so it scales about
+     its feet. Beneath the opponent cards, and never takes a tap. */
+  .tt-pet{
+    position:absolute; left:0; top:0; z-index:1; width:72px; height:64px;
+    background:url("assets/goblinsword_fixed.png") no-repeat;
+    image-rendering:pixelated; transform-origin:36px 58px; pointer-events:none;
+  }
 
   .life-card{
     margin:14px; min-height:24vh;
@@ -636,6 +647,7 @@
     <!-- ================= TABLETOP VIEW ================= -->
     <div id="tabletopView" class="hidden">
       <button class="tt-exit-btn" id="tabletopExitBtn">✕ Exit</button>
+      <button class="tt-exit-btn tt-pet-btn" id="ttPetToggleBtn" aria-pressed="true" aria-label="Goblin on" title="Goblin on">👺</button>
       <div class="tt-self" id="ttSelf">
         <div class="tt-tap minus" id="ttLifeMinusTap"></div>
         <div class="tt-tap plus" id="ttLifePlusTap"></div>
@@ -653,6 +665,7 @@
           <span class="tt-stamp-text">Defeated</span>
         </div>
       </div>
+      <div class="tt-pet" id="ttPet" aria-hidden="true"></div>
       <div class="tt-opponents" id="ttOpponents"></div>
       <div class="tt-snap-markers hidden" id="ttSnapMarkers"></div>
     </div>
@@ -810,6 +823,7 @@
   var MANA_COLLAPSED_KEY = "mtg-counter-mana-collapsed";
   var TABLETOP_MODE_KEY = "mtg-counter-tabletop-mode";
   var TT_POSITIONS_KEY = "mtg-counter-tabletop-positions";
+  var PET_ENABLED_KEY = "mtg-counter-pet-enabled";
 
   // 12 discrete seating slots around the arena, as {top%, left%} of the tabletop view.
   // The screen is taller than it is wide, so the left/right ("lateral") edges get three
@@ -1034,6 +1048,8 @@
     tabletopExitBtn: document.getElementById("tabletopExitBtn"),
     tabletopView: document.getElementById("tabletopView"),
     ttSelf: document.getElementById("ttSelf"),
+    ttPet: document.getElementById("ttPet"),
+    ttPetToggleBtn: document.getElementById("ttPetToggleBtn"),
     ttLifeMinusTap: document.getElementById("ttLifeMinusTap"),
     ttLifePlusTap: document.getElementById("ttLifePlusTap"),
     ttLifeValue: document.getElementById("ttLifeValue"),
@@ -1112,6 +1128,7 @@
       renderTable();
       renderCommander();
       renderTabletopOpponents();
+      petObserve();
     }).catch(function(){ /* keep showing last known table */ });
   }
 
@@ -1643,6 +1660,7 @@
     el.lifeCard.classList.toggle("defeated", defeated);
     el.defeatedTag.classList.toggle("show", defeated);
     el.ttSelf.classList.toggle("defeated", defeated);
+    petObserve();
   }
 
   // ---------- The Table (other players) ----------
@@ -1744,6 +1762,8 @@
   function applyTabletopMode(){
     el.tabletopView.classList.toggle("hidden", !tabletopMode);
     if(tabletopMode) renderTabletopOpponents();
+    if(tabletopMode && petEnabled) petStart();
+    else petStop();
   }
   function enterTabletopMode(){
     tabletopMode = true;
@@ -1911,6 +1931,209 @@
       attachTabletopDrag(card, p.id);
       el.ttOpponents.appendChild(card);
     });
+  }
+
+  // ---------- Table pet (the Tabletop View goblin) ----------
+  // Deliberately not synced. Every phone runs its own goblin and they wander
+  // independently. Reactions come from life totals and defeated state, which every
+  // phone already has, so the goblins swing and fall at roughly the same moments
+  // with no shared state and no server change.
+  var PET_SCALE = 2;
+  var PET_SPEED = 24;        // screen px/s: about the art's own stride at PET_SCALE, so the feet don't skate
+  var PET_WALK_FPS = 10;
+  var PET_SETTLE_MS = 2000;  // wait for a player's taps to stop. Longer than POLL_MS, so a burst split across two polls is still one swing
+  var PET_FALLEN_MS = 4500;
+  var PET_FALL_FRAMES = [44, 45, 46, 47, 48]; // stand, crouch, tumble onto its head
+  // Sheet rows by facing. Every row is an 8-frame walk followed by a 3-frame attack.
+  var PET_ROWS = {down:0, right:1, up:2, left:3};
+  // Feet position the goblin wanders within, as fractions of the arena. Kept above
+  // your own life total at the bottom.
+  var PET_BOUNDS = {x0:0.14, x1:0.86, y0:0.16, y1:0.62};
+  // Per-frame [dx, dy] in sheet pixels that moves each frame's legs anchor to x=36
+  // and its lowest pixel to y=58. The artist drew forward travel inside every cell,
+  // so without this the goblin slides sideways while walking in place. Computed the
+  // way tools/sprite-inspector does it (legs anchor, 18 leg rows, baseline locked);
+  // recompute if the sheet changes.
+  var PET_OFFSETS = [
+    [6,4],[4,1],[4,4],[3,4],[2,1],[1,4],[0,6],[-3,3],[-2,-3],[-4,-2],[-4,6],
+    [10,3],[10,3],[8,4],[6,4],[5,3],[4,3],[6,3],[4,3],[3,3],[2,3],[1,3],
+    [4,-3],[4,-5],[2,-3],[2,-3],[0,-5],[0,-3],[-2,-2],[-4,-2],[-3,-2],[-4,-2],[-4,-2],
+    [2,1],[1,1],[0,2],[-2,2],[-4,1],[-4,1],[-7,1],[-6,1],[-8,1],[-9,1],[-10,1],
+    [6,2],[4,-3],[4,-3],[4,-5],[2,-5]
+  ];
+
+  var pet = {
+    x: PET_BOUNDS.x0 + Math.random() * (PET_BOUNDS.x1 - PET_BOUNDS.x0),
+    y: PET_BOUNDS.y0 + Math.random() * (PET_BOUNDS.y1 - PET_BOUNDS.y0),
+    facing:"down", mode:"idle", until:0, target:null,
+    seq:null, seqStart:0, falling:false, frame:-1
+  };
+  var petEnabled = true; // on by default; each phone can turn its own goblin off
+  var petRaf = null;
+  var petLastTs = 0;
+  var petWatch = {};  // playerId -> {life, defeated} as last observed
+  var petSettle = {}; // playerId -> {timer, from}: a life drop waiting for the taps to stop
+
+  function petStart(){
+    if(petRaf) return;
+    petLastTs = 0;
+    petRaf = requestAnimationFrame(petTick);
+  }
+  function petStop(){
+    if(petRaf) cancelAnimationFrame(petRaf);
+    petRaf = null;
+  }
+
+  // Local-only, like the Tabletop mode flag: turning him off on your phone
+  // leaves everyone else's goblin alone.
+  function loadPetEnabled(){
+    try{ return localStorage.getItem(PET_ENABLED_KEY) !== "0"; }catch(e){ return true; }
+  }
+  function applyPetEnabled(){
+    el.ttPet.classList.toggle("hidden", !petEnabled);
+    var label = "Goblin " + (petEnabled ? "on" : "off");
+    el.ttPetToggleBtn.classList.toggle("off", !petEnabled);
+    el.ttPetToggleBtn.setAttribute("aria-pressed", petEnabled ? "true" : "false");
+    el.ttPetToggleBtn.setAttribute("aria-label", label);
+    el.ttPetToggleBtn.title = label;
+    if(tabletopMode && petEnabled) petStart();
+    else petStop();
+  }
+  el.ttPetToggleBtn.addEventListener("click", function(){
+    petEnabled = !petEnabled;
+    try{ localStorage.setItem(PET_ENABLED_KEY, petEnabled ? "1" : "0"); }catch(e){}
+    applyPetEnabled();
+  });
+
+  function petIdle(now, ms){
+    pet.mode = "idle";
+    pet.until = now + ms;
+    pet.seq = null;
+    pet.falling = false;
+  }
+  // Plays a fixed list of {f, ms} frames once, then stands idle for idleAfter ms.
+  function petPlay(seq, idleAfter, falling){
+    pet.mode = "seq";
+    pet.seq = seq;
+    pet.seqStart = performance.now();
+    pet.idleAfter = idleAfter;
+    pet.falling = falling;
+  }
+
+  function petFacingToward(playerId){
+    if(playerId === PLAYER_ID) return "down"; // your own life total is at the bottom
+    var slot = TT_SLOTS[tabletopPositions[playerId]];
+    if(!slot) return pet.facing;
+    var dx = (slot.left / 100 - pet.x) * el.tabletopView.clientWidth;
+    var dy = (slot.top / 100 - pet.y) * el.tabletopView.clientHeight;
+    if(Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+    return dy > 0 ? "down" : "up";
+  }
+
+  function petAttack(playerId){
+    if(!tabletopMode || !petEnabled || pet.falling) return;
+    pet.facing = petFacingToward(playerId);
+    var base = PET_ROWS[pet.facing] * 11;
+    petPlay([{f:base + 8, ms:140}, {f:base + 9, ms:280}, {f:base + 10, ms:180}], 600, false);
+  }
+  function petFall(){
+    if(!tabletopMode || !petEnabled || pet.falling) return;
+    var seq = [];
+    PET_FALL_FRAMES.forEach(function(f){ seq.push({f:f, ms:110}); });
+    seq[seq.length - 1].ms += PET_FALLEN_MS;
+    PET_FALL_FRAMES.slice(0, -1).reverse().forEach(function(f){ seq.push({f:f, ms:110}); });
+    pet.facing = "down";
+    petPlay(seq, 800, true);
+  }
+
+  function petCancelSettle(id){
+    if(!petSettle[id]) return;
+    clearTimeout(petSettle[id].timer);
+    delete petSettle[id];
+  }
+  // Every change restarts the wait, so tapping down 7 is one swing. It only swings if
+  // the player is still below where the burst started, so -3 then +3 is nothing.
+  function petQueueSwing(id, fromLife){
+    var from = petSettle[id] ? petSettle[id].from : fromLife;
+    petCancelSettle(id);
+    petSettle[id] = {from: from, timer: setTimeout(function(){
+      delete petSettle[id];
+      var w = petWatch[id];
+      if(w && !w.defeated && w.life < from) petAttack(id);
+    }, PET_SETTLE_MS)};
+  }
+
+  // Called whenever life or defeated state might have changed, for you or anyone else.
+  // The first sighting of a player only records them, so joining or reloading never
+  // sets anything off.
+  function petObserve(){
+    if(!state || !state.started) return;
+    var seen = {};
+    seen[PLAYER_ID] = {life: state.life, defeated: isDefeated(state.life, state.tokens, state.commanderDamage)};
+    Object.keys(latestPlayers).forEach(function(id){
+      if(id === PLAYER_ID) return;
+      var p = latestPlayers[id];
+      seen[id] = {life: p.life, defeated: isDefeated(p.life, p.tokens, null)};
+    });
+    Object.keys(seen).forEach(function(id){
+      var now = seen[id], prev = petWatch[id];
+      if(!prev || typeof now.life !== "number") return;
+      if(now.defeated && !prev.defeated){
+        petCancelSettle(id);
+        petFall();
+      }else if(!now.defeated && now.life !== prev.life && (petSettle[id] || now.life < prev.life)){
+        petQueueSwing(id, prev.life);
+      }
+    });
+    Object.keys(petSettle).forEach(function(id){ if(!seen[id]) petCancelSettle(id); });
+    petWatch = seen;
+  }
+
+  function petTick(ts){
+    petRaf = requestAnimationFrame(petTick);
+    var dt = petLastTs ? Math.min(100, ts - petLastTs) : 0; // clamp so a backgrounded tab doesn't teleport it
+    petLastTs = ts;
+    var W = el.tabletopView.clientWidth, H = el.tabletopView.clientHeight;
+    if(!W || !H) return;
+    var now = performance.now();
+    var frame;
+
+    if(pet.mode === "seq"){
+      var t = now - pet.seqStart, i = 0;
+      while(i < pet.seq.length && t >= pet.seq[i].ms){ t -= pet.seq[i].ms; i++; }
+      if(i < pet.seq.length) frame = pet.seq[i].f;
+      else petIdle(now, pet.idleAfter);
+    }
+    if(pet.mode === "idle" && now >= pet.until){
+      pet.mode = "walk";
+      pet.target = {
+        x: PET_BOUNDS.x0 + Math.random() * (PET_BOUNDS.x1 - PET_BOUNDS.x0),
+        y: PET_BOUNDS.y0 + Math.random() * (PET_BOUNDS.y1 - PET_BOUNDS.y0)
+      };
+    }
+    if(pet.mode === "walk"){
+      var dx = (pet.target.x - pet.x) * W, dy = (pet.target.y - pet.y) * H;
+      var dist = Math.sqrt(dx * dx + dy * dy), step = PET_SPEED * dt / 1000;
+      if(dist <= step){
+        pet.x = pet.target.x; pet.y = pet.target.y;
+        petIdle(now, 1500 + Math.random() * 3500);
+      }else{
+        pet.x += dx / dist * step / W;
+        pet.y += dy / dist * step / H;
+        pet.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+        frame = PET_ROWS[pet.facing] * 11 + Math.floor(now * PET_WALK_FPS / 1000) % 8;
+      }
+    }
+    if(frame === undefined) frame = PET_ROWS[pet.facing] * 11;
+
+    var off = PET_OFFSETS[frame];
+    if(frame !== pet.frame){
+      pet.frame = frame;
+      el.ttPet.style.backgroundPosition = (-(frame % 11) * 72) + "px " + (-Math.floor(frame / 11) * 64) + "px";
+    }
+    el.ttPet.style.transform =
+      "translate(" + (pet.x * W - 36 + off[0] * PET_SCALE) + "px," + (pet.y * H - 58 + off[1] * PET_SCALE) + "px)" +
+      " scale(" + PET_SCALE + ")";
   }
 
   // ---------- Commander Damage (damage taken by you, per opponent) ----------
@@ -2531,6 +2754,8 @@
     applyManaCollapsed();
     tabletopMode = loadTabletopMode();
     tabletopPositions = loadTabletopPositions();
+    petEnabled = loadPetEnabled();
+    applyPetEnabled();
     applyTabletopMode();
     renderAll();
     if(state.started){

@@ -221,6 +221,17 @@ game, so once you've arranged your regular group it should stay put game
 after game (matched by who they are, not where they happened to sit down
 first).
 
+A goblin wanders around the middle of the table. It walks behind the
+player cards and never gets in the way of a tap. When anyone loses life,
+you included, it waits a moment for the tapping to stop, then swings its
+sword toward that player, once per hit rather than once per tap. When
+someone goes out, it falls flat on its head for a few seconds, then picks
+itself up and carries on. Each phone has its own goblin, so they won't be
+standing in the same spot on everyone's screen, but they react to the same
+things. He's on by default. Tap 👺 in the top-right corner to send him away
+on your phone only; tap it again to bring him back. Your phone remembers
+the choice.
+
 ## Notes on how sync works
 
 There's no login or room code — everyone who connects to the same server
@@ -299,8 +310,8 @@ anyway (see above), which is the one to use once somebody's in.
   folder and nothing else, so the rest of the folder isn't readable from
   the wifi.
 - `start.bat` / `start.sh`: one-click launchers for Windows / Mac/Linux
-- `assets/`: images for the app. These have their own licences, listed
-  in `assets/CREDITS.md`.
+- `assets/`: images for the app (the Tabletop View goblin). These have
+  their own licences, listed in `assets/CREDITS.md`.
 - `python\`: only in the ready-to-run download, a self-contained copy
   of Python. Safe to ignore; delete the whole folder to uninstall.
 

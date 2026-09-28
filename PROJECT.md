@@ -39,7 +39,7 @@ embeddable runtime (see Distribution below):
 - **`make-bundle.ps1` / `make-bundle.bat`** — build tooling, not part of the
   app. Produces the ready-to-run zip. See Distribution below.
 - **`assets/`** — images the app loads. Currently just the goblin sprite
-  sheet for the planned table pet. Art here has its own licence, recorded
+  sheet for the table pet. Art here has its own licence, recorded
   in `assets/CREDITS.md`; anything added to this folder needs an entry there.
 - **`tools/`** — standalone developer tools, not part of the app and not
   served by `server.py`. `tools/sprite-inspector/` auditions sprite sheet
@@ -487,6 +487,13 @@ already-installed-deps only, and all are meant to be run by hand:
   symmetric and per-axis adjustment, the counter reaching the other
   player's Table card and Tabletop seat, drag-to-seat snapping and
   persistence, and loading an old `{id, count}` save. Takes a fresh port.
+- **`test_pet.py <port>`** — Playwright end-to-end for the table pet. One
+  player watches Tabletop View while the other loses life and goes out.
+  Reads the goblin's sheet frame back from its `background-position`, so
+  it checks what's on screen without test hooks: one swing per burst of
+  taps, none for a −3/+3 wash, a 4–5s fall, swings dropped while it's
+  down, and the loop stopping outside Tabletop View. Takes a fresh port;
+  it runs about 40s because the settle and fall timings are real.
 
 Playwright runs against a locally-running `server.py`, with
 `args=['--no-sandbox']`. The Playwright tests use the Chromium at
@@ -679,6 +686,48 @@ Roughly in build order, for context on decisions already made:
   but no share modal while the docs described the reverse. Merged back into
   one `index.html`; `test_tabletop.py` and `test_share.py` together cover
   both lines so a repeat shows up as a test failure.
+- Table pet: a goblin (`#ttPet`, the "Table pet" section of the script)
+  that wanders the Tabletop View arena, swings when anyone loses life and
+  falls down when anyone goes out. Decisions worth keeping:
+  - **Not synced, on purpose.** The earlier plan was a shared seed plus a
+    behaviour state so every phone showed the same goblin in the same spot.
+    Dropped once "roughly the same" was judged fine: each phone wanders its
+    own goblin, and reactions come from `petObserve()` diffing life and
+    `isDefeated()` against the last observation. That data already reaches
+    every phone, so the goblins react at roughly the same moments with no
+    server change and no new snapshot field. Don't add sync unless someone
+    actually wants identical positions.
+  - **One swing per burst.** Every change restarts a per-player 2s timer
+    (`PET_SETTLE_MS`, deliberately longer than `POLL_MS` so an opponent's
+    burst split across two polls is still one swing). It only swings if
+    the player is still below where the burst started, so a mis-tap and
+    correction does nothing. A fall cancels that player's pending swing,
+    and swings are ignored while the goblin is down.
+  - **The first sighting of a player only records a baseline**, so joining,
+    reloading or opening Tabletop View never sets anything off. Life going
+    up (undo, reset, new game) is never a reaction.
+  - **Tabletop View only**, and the animation loop runs only while it's
+    open (`petStart()`/`petStop()` from `applyTabletopMode()`). Reactions
+    that come due while it's closed are dropped, not queued.
+  - **On by default, off per phone.** The 👺 button in Tabletop View's
+    top-right corner (`PET_ENABLED_KEY`, local-only like the Tabletop mode
+    flag). It's icon-sized on purpose: a full "Goblin: on" label reached
+    into the top of the +1 tap zone, and `test_tabletop.py`'s +1 tap landed
+    on it. Keep anything added to that corner as small.
+  - **Rendering** is a CSS sprite: one 72×64 cell as a background, scaled
+    2× with `image-rendering:pixelated`, `pointer-events:none` so it never
+    blocks the life tap zones, z-index 1 so it walks behind opponent cards.
+    `PET_OFFSETS` is a per-frame table that moves each frame's legs anchor
+    to x=36 and feet to y=58, because the artist drew forward travel inside
+    each cell. It's the same correction the sprite inspector computes;
+    regenerate it if the sheet changes.
+  - **Sheet layout, confirmed at 3× on this build** (the earlier handoff
+    readings of rows 0 and 2 were backwards): row 0 faces the viewer, row
+    1 faces right, row 2 faces away, row 3 faces left. Every one of those
+    rows is an 8-frame walk then a 3-frame attack (`PET_ROWS`). Row 4
+    (44–48) is stand, crouch, tumble onto its head, used for the fall and
+    played in reverse to get up. The swing faces the player who lost life:
+    toward their seat, or down toward you for your own life.
 
 ## Conventions checklist for the next feature
 

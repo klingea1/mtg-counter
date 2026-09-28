@@ -28,7 +28,9 @@ embeddable runtime (see Distribution below):
   under `assets/`, read off disk on every request (no caching), and
   nothing else in the folder (see "What the server will serve" below), plus
   a tiny JSON API (`GET/POST/DELETE /api/players/<id>`) backed by an
-  in-memory dict (`PLAYERS`) guarded by a lock. Nothing is persisted to
+  in-memory dict (`PLAYERS`) guarded by a lock, and `GET/POST /api/table`
+  for the table-level markers (`TABLE`, same lock; see the sync model
+  below). Nothing is persisted to
   disk — restarting the server wipes the table. It also runs a small mDNS
   responder on a daemon thread so phones can reach the host as
   `mtg.local` (see the mDNS section below).
@@ -80,7 +82,7 @@ of truth for that player. Two independent mechanisms move data around:
 **Not everything in `state` is broadcast.** Look at the object literal
 inside `pushSnapshot()` — only fields listed there reach other players.
 Right now that's `name, accent, icon, life, startingLife, mana, tokens,
-creatures, rollStatus`. Commander damage is the deliberate exception: it's
+creatures, citysBlessing, rollStatus`. Commander damage is the deliberate exception: it's
 personal bookkeeping (damage *you've* taken from each opponent) and stays
 local, never broadcast. **When you add a new stat, decide on purpose
 whether it belongs in that snapshot object or not** — that's a real design
@@ -93,6 +95,22 @@ expanded detail (mana, tokens, creature counters) that only renders once
 someone taps the card open (`expandedIds`). So "broadcast" and "visible by
 default" are two different decisions — something can sync to the table but
 still stay tucked behind a tap.
+
+**The one thing phones don't own: table-level markers.** Monarch,
+initiative and day/night belong to the table, and only one player can hold
+the monarch, so no single browser can be their source of truth. The server
+owns them instead (`TABLE` in `server.py`). A phone POSTs a partial change
+to `/api/table` (`{monarch: id}`, `{dayNight: null}`), the server applies
+requests one at a time under `PLAYERS_LOCK`, and every phone reads the
+result from `GET /api/table` on its normal poll (`tableMarkers`), plus
+straight from the POST's reply on the phone that made the change. Two
+simultaneous taps can't disagree: the later request wins everywhere. The
+server rejects holders who aren't in `PLAYERS`, and a `DELETE` of a player
+clears anything they held. City's blessing is deliberately *not* here:
+anyone can have it, so it's an ordinary per-player field in the snapshot.
+**When adding table-level state (the turn tracker is next), add a field to
+`TABLE` and its validation in `do_POST`, rather than inventing a second
+mechanism.**
 
 ## The mDNS responder (`mtg.local`)
 
@@ -395,7 +413,8 @@ confirmed working end to end, not just in theory.
   tokens: [{id, name, count}],             // named, broadcast, no cap
   creatures: [{id, power, toughness}],     // unnamed, broadcast, each axis independently
                                             // signed/negative (e.g. -1/-1, or asymmetric +1/+0)
-  commanderDamage: {}                      // opponentId -> {name, accent, amount}, LOCAL ONLY
+  commanderDamage: {},                     // opponentId -> {name, accent, amount}, LOCAL ONLY
+  citysBlessing: false                     // broadcast; per player, unlike monarch
 }
 ```
 
@@ -462,7 +481,7 @@ reader for anything coming from another device's snapshot.
 
 ## Testing
 
-Five test scripts ship in the folder. All are stdlib or
+The test scripts ship in the folder. All are stdlib or
 already-installed-deps only, and all are meant to be run by hand:
 
 - **`test_static.py`** — the static-file allowlist. Starts its own server
@@ -487,6 +506,14 @@ already-installed-deps only, and all are meant to be run by hand:
   symmetric and per-axis adjustment, the counter reaching the other
   player's Table card and Tabletop seat, drag-to-seat snapping and
   persistence, and loading an old `{id, count}` save. Takes a fresh port.
+- **`test_markers.py <port>`** — Playwright end-to-end for table
+  markers, with two browser contexts as two players: handing monarch and
+  initiative to yourself or someone else, both phones agreeing after
+  three rounds of simultaneous taps, badges on the Table card and
+  Tabletop seat, day/night on both views, city's blessing riding the
+  snapshot, a leaving holder dropping their markers, Clear table markers,
+  and the server rejecting unknown players, fields and values. Takes a
+  fresh port.
 - **`test_pet.py <port>`** — Playwright end-to-end for the table pet. One
   player watches Tabletop View while the other loses life and goes out.
   Reads the goblin's sheet frame back from its `background-position`, so
@@ -690,7 +717,7 @@ Roughly in build order, for context on decisions already made:
   that wanders the Tabletop View arena, swings when anyone loses life and
   falls down when anyone goes out. Decisions worth keeping:
   - **Not synced, on purpose.** The earlier plan was a shared seed plus a
-    behaviour state so every phone showed the same goblin in the same spot.
+    behavior state so every phone showed the same goblin in the same spot.
     Dropped once "roughly the same" was judged fine: each phone wanders its
     own goblin, and reactions come from `petObserve()` diffing life and
     `isDefeated()` against the last observation. That data already reaches
@@ -714,15 +741,6 @@ Roughly in build order, for context on decisions already made:
     flag). It's icon-sized on purpose: a full "Goblin: on" label reached
     into the top of the +1 tap zone, and `test_tabletop.py`'s +1 tap landed
     on it. Keep anything added to that corner as small.
-- One server per port on Windows: `ThreadingHTTPServer` used to set
-  `allow_reuse_address`, which on Windows lets a second server bind a port
-  that's already being listened on, silently. Double-clicking `start.bat`
-  twice gave two servers on :8000 with two separate tables, and phones
-  split between them at random. Windows now binds with
-  `SO_EXCLUSIVEADDRUSE`, so the second copy fails with a plain message
-  saying the counter is probably already running. Verified that a
-  restart straight after stopping still binds. `start.bat` passes its
-  arguments through, so `start.bat 8001` picks another port.
   - **Rendering** is a CSS sprite: one 72×64 cell as a background, scaled
     2× with `image-rendering:pixelated`, `pointer-events:none` so it never
     blocks the life tap zones, z-index 1 so it walks behind opponent cards.
@@ -737,6 +755,39 @@ Roughly in build order, for context on decisions already made:
     (44–48) is stand, crouch, tumble onto its head, used for the fall and
     played in reverse to get up. The swing faces the player who lost life:
     toward their seat, or down toward you for your own life.
+- One server per port on Windows: `ThreadingHTTPServer` used to set
+  `allow_reuse_address`, which on Windows lets a second server bind a port
+  that's already being listened on, silently. Double-clicking `start.bat`
+  twice gave two servers on :8000 with two separate tables, and phones
+  split between them at random. Windows now binds with
+  `SO_EXCLUSIVEADDRUSE`, so the second copy fails with a plain message
+  saying the counter is probably already running. Verified that a
+  restart straight after stopping still binds. `start.bat` passes its
+  arguments through, so `start.bat 8001` picks another port.
+- Table markers: monarch, initiative, day/night and city's blessing, in a
+  collapsed "Table Markers" section on the standard screen, with badges
+  under names everywhere a player appears. Decisions worth keeping:
+  - **Server-owned, not phone-owned** (see the sync model section). The
+    question that held this up was "who wins when two people tap at
+    once"; letting the server serialize requests answers it and gives
+    the turn tracker somewhere to live.
+  - **Anyone can hand a marker to anyone**, because the monarch usually
+    changes hands through someone else's action. Tapping the holder
+    clears it. No "claim only your own" restriction.
+  - **Clearing:** a holder leaving the table (`DELETE`, which New Game
+    does) drops their markers server-side; otherwise "Clear table
+    markers" (behind the confirm modal) resets them. Each player's New
+    Game is local to their phone, so it can't reset table state for
+    everyone.
+  - **City's blessing is per player**, in the snapshot, cleared by Reset
+    and New Game like any other personal stat.
+  - **Labeled pills, not emoji**, because 👑 is already one of the six
+    player icons. Badges sit *under* the name (`.name-stack` on Table
+    cards, a full-width line in the you-banner): beside it, three badges
+    squeezed the name to nothing at 390px.
+  - Day/night shows as ☀️/🌙 in the Table header and as a display-only
+    tag left of the 👺 button in Tabletop View (`pointer-events:none`,
+    for the same tap-zone reason as that button).
 
 ## Conventions checklist for the next feature
 

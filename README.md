@@ -214,11 +214,33 @@ are worth a try, both free and both depending on your router:
   at the table sees the same "so-and-so is rolling…" / "so-and-so
   rolled 14 on a d20" message on that player's Table card, so a roll
   for turn order or an effect is visible to the whole table.
+- **Table Markers**: who's the monarch, who has the initiative, whether
+  it's day or night, and who has the city's blessing. Collapsed by
+  default; the header lists what's in play, so you can see at a glance
+  without opening it. Tap a player's name under Monarch or Initiative to
+  hand it to them — you can hand it to anyone, not just yourself, since
+  it usually moves because of what someone else did. Tap whoever has it
+  to take it off the table. Day and Night work the same way. If two
+  people tap at the same moment, the one that reaches the server last
+  wins, and every phone shows the same answer within a couple of
+  seconds. A player who leaves the table gives up anything they held.
+  **Clear table markers** clears monarch, initiative and day/night for
+  everyone, for the start of a new game.
+
+  City's blessing is different, because everyone can have it at once:
+  tap **You don't have it** to mark that you've got it. It's yours to set,
+  like your life total, and Reset or New Game clears it.
+
+  Whoever holds a marker gets a small badge under their name, on your
+  own screen, on their Table card, and on their seat in Tabletop View.
+  Day or night shows as ☀️ or 🌙 in the Table header and in the top corner
+  of Tabletop View.
 - **Rename**: tap "✎ Rename" next to your name at any point mid-game to
   change how you appear to everyone else at the table.
-- **Reset** clears life, mana, tokens, creature counters and commander
-  damage back to the start of the current game (keeps your starting life
-  total and table visibility). **New Game** wipes everything, including starting life,
+- **Reset** clears life, mana, tokens, creature counters, commander
+  damage and your city's blessing back to the start of the current game
+  (keeps your starting life total and table visibility). It only touches
+  your own counter; the table's markers have their own clear button. **New Game** wipes everything, including starting life,
   and leaves the table until you tap "Enter the Table" again.
 
 ## Tabletop View
@@ -236,8 +258,9 @@ you are relative to your phone. Tap the left or right half of the screen for
 controls as the normal screen — everything else (mana, tokens, Commander
 damage) stays on the standard screen, reachable by exiting Tabletop View.
 
-Everyone else shows up as a small card with their name, life total, and
-creature counters (shown as full power/toughness, like "+1/+2") — read-only,
+Everyone else shows up as a small card with their name, any table markers
+they hold, their life total, and creature counters (shown as full
+power/toughness, like "+1/+2") — read-only,
 since that's their own device's data, not yours to change. If several
 counters are on the board at once, the card wraps them onto extra rows
 rather than running off the edge of the screen, however you've positioned
@@ -282,6 +305,12 @@ not part of what's synced to the table. So does where you've dragged
 people to in Tabletop View. Dice/coin rolls, on the other
 hand, are synced, so the whole table can see when someone rolls and
 what they got.
+
+Monarch, initiative and day/night are the one exception to "each phone
+owns its own stats": they belong to the whole table, so the server keeps
+them and every phone asks it for changes. That's what makes two
+simultaneous taps come out the same on every screen. They reset with the
+server, like everything else.
 
 ## Joining without the QR code
 

@@ -165,8 +165,11 @@
   .you-banner{
     margin:14px 14px 0; padding:10px 12px; border-radius:12px;
     background:var(--panel-2); border:1px solid var(--border-gold-soft);
-    display:flex; align-items:center; gap:10px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   }
+  /* Badges get a full-width line under the banner row: squeezed in beside the
+     buttons they had no room and pushed the name out. */
+  .you-banner .you-badges{flex-basis:100%; margin-top:-2px; padding-left:52px;}
   .you-banner .dot{width:12px; height:12px; border-radius:50%; flex:none; box-shadow:0 0 6px currentColor;}
   .you-banner .you-name{flex:1; font-weight:700; font-size:1.05rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .you-banner .rename-btn, .you-banner .tabletop-btn{
@@ -281,7 +284,7 @@
   }
   .tt-snap-marker.nearest::after{background:var(--accent-light); box-shadow:0 0 8px var(--accent-light);}
   /* Table pet: one 72×64 cell of the goblin sheet. JS positions it with a transform whose
-     origin is the corrected anchor point (legs centre x=36, feet y=58), so it scales about
+     origin is the corrected anchor point (legs center x=36, feet y=58), so it scales about
      its feet. Beneath the opponent cards, and never takes a tap. */
   .tt-pet{
     position:absolute; left:0; top:0; z-index:1; width:72px; height:64px;
@@ -490,6 +493,45 @@
     font-size:0.78rem; font-weight:700; color:var(--accent-light); font-family:"Cinzel",Georgia,serif;
   }
 
+  /* ---------- Table markers (monarch, initiative, city's blessing, day/night) ---------- */
+  /* Labeled pills rather than bare emoji: 👑 is already a player icon, so a crown
+     badge next to a name could read as someone's icon. */
+  .mk-badges{display:inline-flex; gap:4px; flex-wrap:wrap; flex:none;}
+  /* A Table card's name with its badges underneath, so a player holding several
+     markers keeps their name instead of it being squeezed out of the row. */
+  .name-stack{flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px;}
+  .name-stack .t-name{flex:none; max-width:100%;}
+  .mk-badges:empty{display:none;}
+  .mk-badge{
+    font-size:0.6rem; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:0.5px;
+    font-family:"Cinzel",Georgia,serif; text-transform:uppercase; white-space:nowrap;
+    color:#241a04; background:linear-gradient(180deg, var(--accent-light), var(--accent)); border:1px solid #6b5024;
+  }
+  .tt-player .mk-badges{display:flex; justify-content:center; margin-bottom:4px;}
+  .tt-player .mk-badges:empty{display:none;}
+  .tt-player .mk-badge{font-size:0.52rem; padding:1px 5px;}
+  .day-night-tag{font-size:0.9rem; letter-spacing:0; text-transform:none;}
+  .tt-day-night{
+    position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); right:60px; z-index:5; pointer-events:none;
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); border-radius:10px;
+    padding:6px 9px; font-size:1.05rem; line-height:1;
+  }
+  .marker-row{margin-bottom:12px;}
+  .marker-row:last-of-type{margin-bottom:10px;}
+  .marker-label{font-size:0.72rem; color:var(--text-dim); margin-bottom:6px; font-family:"Cinzel",Georgia,serif; letter-spacing:0.5px;}
+  .marker-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .marker-chip{
+    display:inline-flex; align-items:center; gap:6px; min-height:38px;
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text-dim);
+    padding:7px 12px; border-radius:999px; font-size:0.85rem; font-family:inherit;
+  }
+  .marker-chip .dot{width:10px; height:10px; border-radius:50%; flex:none;}
+  .marker-chip.on{
+    color:#241a04; font-weight:700; border-color:#6b5024;
+    background:linear-gradient(180deg, var(--accent-light), var(--accent));
+  }
+  .marker-footer{display:flex; justify-content:flex-end;}
+
   /* ---------- Commander Damage ---------- */
   .section-toggle{
     background:none; border:none; color:var(--text-dim); font-size:0.68rem; letter-spacing:0.5px;
@@ -642,12 +684,14 @@
       <span class="you-name" id="youNameLabel"></span>
       <button class="tabletop-btn" id="tabletopToggleBtn">🗺️ Tabletop</button>
       <button class="rename-btn" id="renameBtn">✎ Rename</button>
+      <span class="mk-badges you-badges" id="youBadges"></span>
     </div>
 
     <!-- ================= TABLETOP VIEW ================= -->
     <div id="tabletopView" class="hidden">
       <button class="tt-exit-btn" id="tabletopExitBtn">✕ Exit</button>
       <button class="tt-exit-btn tt-pet-btn" id="ttPetToggleBtn" aria-pressed="true" aria-label="Goblin on" title="Goblin on">👺</button>
+      <div class="tt-day-night hidden" id="ttDayNight"></div>
       <div class="tt-self" id="ttSelf">
         <div class="tt-tap minus" id="ttLifeMinusTap"></div>
         <div class="tt-tap plus" id="ttLifePlusTap"></div>
@@ -658,6 +702,7 @@
           <div class="tt-self-row">
             <span class="tt-self-icon" id="ttSelfIcon"></span>
             <span class="tt-self-name" id="ttSelfName"></span>
+            <span class="mk-badges" id="ttSelfBadges"></span>
           </div>
         </div>
         <div class="tt-defeated-stamp" aria-hidden="true">
@@ -692,11 +737,39 @@
 
     <section class="block ornate-panel" id="tableSection">
       <h2>
-        <span>The Table <span class="count-tag" id="tableCount"></span></span>
+        <span>The Table <span class="count-tag" id="tableCount"></span> <span class="day-night-tag hidden" id="tableDayNight"></span></span>
         <button class="share-btn" id="tableShareBtn">Invite ▸</button>
       </h2>
       <div class="table-list" id="tableList"></div>
       <div class="empty-hint" id="tableEmptyHint">Waiting for others to join on this wifi…</div>
+    </section>
+
+    <section class="block ornate-panel">
+      <h2>
+        <span>Table Markers <span class="count-tag" id="markersSummary"></span></span>
+        <button class="section-toggle" id="markersToggleBtn">▸ Show</button>
+      </h2>
+      <div id="markersBody" class="hidden">
+        <div class="marker-row">
+          <div class="marker-label">Monarch</div>
+          <div class="marker-chips" id="monarchChips"></div>
+        </div>
+        <div class="marker-row">
+          <div class="marker-label">Initiative</div>
+          <div class="marker-chips" id="initiativeChips"></div>
+        </div>
+        <div class="marker-row">
+          <div class="marker-label">Day / Night</div>
+          <div class="marker-chips" id="dayNightChips"></div>
+        </div>
+        <div class="marker-row">
+          <div class="marker-label">City's blessing</div>
+          <div class="marker-chips">
+            <button class="marker-chip" id="blessingBtn" aria-pressed="false">You have it</button>
+          </div>
+        </div>
+        <div class="marker-footer"><button class="clear-link" id="clearMarkersBtn">Clear table markers</button></div>
+      </div>
     </section>
 
     <section class="block ornate-panel">
@@ -824,6 +897,7 @@
   var TABLETOP_MODE_KEY = "mtg-counter-tabletop-mode";
   var TT_POSITIONS_KEY = "mtg-counter-tabletop-positions";
   var PET_ENABLED_KEY = "mtg-counter-pet-enabled";
+  var MARKERS_COLLAPSED_KEY = "mtg-counter-markers-collapsed";
 
   // 12 discrete seating slots around the arena, as {top%, left%} of the tabletop view.
   // The screen is taller than it is wide, so the left/right ("lateral") edges get three
@@ -905,6 +979,10 @@
   var tabletopMode = false;
   var tabletopPositions = {}; // playerId -> slot index (0-7), local-only, never broadcast
   var ttDraggingId = null;    // player id currently being dragged, or null
+  // Table-level markers, owned by the server (see TABLE in server.py). Mirrored here
+  // from /api/table on every poll, and straight from the reply after a change.
+  var tableMarkers = {monarch:null, initiative:null, dayNight:null};
+  var markersCollapsed = true;
 
   function defaultState(){
     return {
@@ -918,7 +996,8 @@
       tokens:[], // {id, name, count}
       creatures:[], // {id, power, toughness} -- independent P/T deltas on a creature, no
                     // name, each can go negative (e.g. -1/-1, or asymmetric like +1/+0)
-      commanderDamage:{} // opponentId -> {name, accent, amount}
+      commanderDamage:{}, // opponentId -> {name, accent, amount}
+      citysBlessing:false // per player, unlike monarch: anyone can have it, and it's broadcast
     };
   }
 
@@ -1050,6 +1129,18 @@
     ttSelf: document.getElementById("ttSelf"),
     ttPet: document.getElementById("ttPet"),
     ttPetToggleBtn: document.getElementById("ttPetToggleBtn"),
+    ttDayNight: document.getElementById("ttDayNight"),
+    ttSelfBadges: document.getElementById("ttSelfBadges"),
+    youBadges: document.getElementById("youBadges"),
+    tableDayNight: document.getElementById("tableDayNight"),
+    markersSummary: document.getElementById("markersSummary"),
+    markersToggleBtn: document.getElementById("markersToggleBtn"),
+    markersBody: document.getElementById("markersBody"),
+    monarchChips: document.getElementById("monarchChips"),
+    initiativeChips: document.getElementById("initiativeChips"),
+    dayNightChips: document.getElementById("dayNightChips"),
+    blessingBtn: document.getElementById("blessingBtn"),
+    clearMarkersBtn: document.getElementById("clearMarkersBtn"),
     ttLifeMinusTap: document.getElementById("ttLifeMinusTap"),
     ttLifePlusTap: document.getElementById("ttLifePlusTap"),
     ttLifeValue: document.getElementById("ttLifeValue"),
@@ -1108,6 +1199,7 @@
       mana: state.mana,
       tokens: state.tokens,
       creatures: state.creatures,
+      citysBlessing: !!state.citysBlessing,
       rollStatus: rollStatus
     };
     fetch("/api/players/" + encodeURIComponent(PLAYER_ID), {
@@ -1128,8 +1220,12 @@
       renderTable();
       renderCommander();
       renderTabletopOpponents();
+      renderMarkers();
       petObserve();
     }).catch(function(){ /* keep showing last known table */ });
+    fetch("/api/table").then(function(r){ return r.json(); }).then(function(t){
+      if(t && !t.error){ tableMarkers = t; renderMarkers(); }
+    }).catch(function(){});
   }
 
   function startPolling(){
@@ -1721,7 +1817,7 @@
         '<div class="table-card-top">' +
           '<span class="dot" style="background:' + (p.accent || "#c9a34e") + '; color:' + (p.accent || "#c9a34e") + ';"></span>' +
           '<span class="t-icon"></span>' +
-          '<span class="t-name"></span>' +
+          '<span class="name-stack"><span class="t-name"></span><span class="mk-badges"></span></span>' +
           (defeated ? '<span class="t-defeated-tag">☠ Out</span>' : '') +
           (away ? '<span class="t-away-tag">away</span>' : '') +
           '<span class="t-life"></span>' +
@@ -1736,6 +1832,7 @@
       card.querySelector(".t-name").textContent = p.name || "Player";
       card.querySelector(".t-icon").textContent = iconSymbol(p.icon);
       card.querySelector(".t-life").textContent = (typeof p.life === "number") ? p.life : "–";
+      fillMarkerBadges(card.querySelector(".mk-badges"), p.id, p.citysBlessing);
       card.querySelector(".t-mana").textContent = "Mana: " + manaSummary(p.mana);
       card.querySelector(".t-tokens").textContent = "Tokens: " + tokenSummary(p.tokens);
       card.querySelector(".t-creatures").textContent = "Creature counters: " + creatureSummary(p.creatures);
@@ -1749,6 +1846,138 @@
       el.tableList.appendChild(card);
     });
   }
+
+  // ---------- Table markers (monarch, initiative, day/night, city's blessing) ----------
+  // Monarch, initiative and day/night belong to the table, so the server holds them
+  // and this phone only asks for changes. City's blessing is per player (anyone can
+  // have it), so it rides the ordinary snapshot like life does.
+  var DAY_NIGHT_SYMBOLS = {day:"☀️", night:"🌙"};
+
+  function fillMarkerBadges(container, playerId, blessed){
+    var labels = [];
+    if(tableMarkers.monarch === playerId) labels.push("Monarch");
+    if(tableMarkers.initiative === playerId) labels.push("Initiative");
+    if(blessed) labels.push("Blessing");
+    container.innerHTML = "";
+    labels.forEach(function(label){
+      var b = document.createElement("span");
+      b.className = "mk-badge";
+      b.textContent = label;
+      container.appendChild(b);
+    });
+  }
+
+  // Sends a partial change ({monarch: id} or {dayNight: null}, say) and shows the
+  // server's answer straight away rather than waiting for the next poll.
+  function setTableMarkers(change){
+    fetch("/api/table", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(change)
+    }).then(function(r){ return r.json(); }).then(function(t){
+      if(t && !t.error){ tableMarkers = t; renderMarkers(); renderTable(); renderTabletopOpponents(); }
+    }).catch(function(){ /* host unreachable — the next poll shows the real state */ });
+  }
+
+  function playerName(id){
+    if(id === PLAYER_ID) return "You";
+    var p = latestPlayers[id];
+    return (p && p.name) || "Player";
+  }
+
+  // You first, then everyone else by name: the people a marker can be handed to.
+  function markerCandidates(){
+    var others = Object.keys(latestPlayers)
+      .filter(function(id){ return id !== PLAYER_ID; })
+      .map(function(id){ return {id:id, name:latestPlayers[id].name || "Player", accent:latestPlayers[id].accent}; })
+      .sort(function(a, b){ return a.name.localeCompare(b.name); });
+    return [{id:PLAYER_ID, name:"You", accent:state.accent}].concat(others);
+  }
+
+  function renderHolderChips(container, key){
+    container.innerHTML = "";
+    markerCandidates().forEach(function(p){
+      var on = tableMarkers[key] === p.id;
+      var chip = document.createElement("button");
+      chip.className = "marker-chip" + (on ? " on" : "");
+      chip.setAttribute("aria-pressed", on ? "true" : "false");
+      chip.innerHTML = '<span class="dot"></span><span class="nm"></span>';
+      chip.querySelector(".dot").style.background = p.accent || "#c9a34e";
+      chip.querySelector(".nm").textContent = p.name;
+      // Tap to hand it over; tap whoever has it to take it off the table.
+      chip.addEventListener("click", function(){
+        var change = {};
+        change[key] = on ? null : p.id;
+        setTableMarkers(change);
+      });
+      container.appendChild(chip);
+    });
+  }
+
+  function renderMarkers(){
+    if(!state || !state.started) return;
+    fillMarkerBadges(el.youBadges, PLAYER_ID, state.citysBlessing);
+    fillMarkerBadges(el.ttSelfBadges, PLAYER_ID, state.citysBlessing);
+
+    var dn = DAY_NIGHT_SYMBOLS[tableMarkers.dayNight] || "";
+    [el.tableDayNight, el.ttDayNight].forEach(function(tag){
+      tag.textContent = dn;
+      tag.title = tableMarkers.dayNight ? "It's " + tableMarkers.dayNight : "";
+      tag.classList.toggle("hidden", !dn);
+    });
+
+    // Collapsed by default, so the header says what's in play without opening it.
+    var summary = [];
+    if(tableMarkers.monarch) summary.push("Monarch: " + playerName(tableMarkers.monarch));
+    if(tableMarkers.initiative) summary.push("Initiative: " + playerName(tableMarkers.initiative));
+    if(tableMarkers.dayNight) summary.push(tableMarkers.dayNight === "day" ? "Day" : "Night");
+    el.markersSummary.textContent = summary.join(" · ");
+
+    renderHolderChips(el.monarchChips, "monarch");
+    renderHolderChips(el.initiativeChips, "initiative");
+
+    el.dayNightChips.innerHTML = "";
+    ["day", "night"].forEach(function(v){
+      var on = tableMarkers.dayNight === v;
+      var chip = document.createElement("button");
+      chip.className = "marker-chip" + (on ? " on" : "");
+      chip.setAttribute("aria-pressed", on ? "true" : "false");
+      chip.textContent = DAY_NIGHT_SYMBOLS[v] + " " + (v === "day" ? "Day" : "Night");
+      chip.addEventListener("click", function(){ setTableMarkers({dayNight: on ? null : v}); });
+      el.dayNightChips.appendChild(chip);
+    });
+
+    var blessed = !!state.citysBlessing;
+    el.blessingBtn.classList.toggle("on", blessed);
+    el.blessingBtn.setAttribute("aria-pressed", blessed ? "true" : "false");
+    el.blessingBtn.textContent = blessed ? "✓ You have it" : "You don't have it";
+  }
+
+  el.blessingBtn.addEventListener("click", function(){
+    state.citysBlessing = !state.citysBlessing;
+    saveState();
+    renderMarkers();
+  });
+
+  el.clearMarkersBtn.addEventListener("click", function(){
+    openConfirm("Clear the monarch, initiative and day/night for everyone at the table? City's blessing is per player and stays put.", function(){
+      setTableMarkers({monarch:null, initiative:null, dayNight:null});
+    });
+  });
+
+  function loadMarkersCollapsed(){
+    try{ return localStorage.getItem(MARKERS_COLLAPSED_KEY) !== "0"; }catch(e){ return true; }
+  }
+  function applyMarkersCollapsed(){
+    el.markersBody.classList.toggle("hidden", markersCollapsed);
+    el.markersToggleBtn.textContent = markersCollapsed ? "▸ Show" : "▾ Hide";
+    el.markersToggleBtn.setAttribute("aria-expanded", markersCollapsed ? "false" : "true");
+  }
+  el.markersToggleBtn.addEventListener("click", function(){
+    markersCollapsed = !markersCollapsed;
+    try{ localStorage.setItem(MARKERS_COLLAPSED_KEY, markersCollapsed ? "1" : "0"); }catch(e){}
+    applyMarkersCollapsed();
+  });
 
   // ---------- Tabletop View (condensed, spatial, read-only-for-others layout) ----------
   // Seating layout is purely local to this device — it's your own read of where
@@ -1910,6 +2139,7 @@
           '<span class="tt-p-icon"></span>' +
           '<span class="tt-p-name"></span>' +
         '</div>' +
+        '<div class="mk-badges"></div>' +
         '<div class="tt-p-life"></div>' +
         '<div class="tt-p-creatures"></div>' +
         '<div class="tt-defeated-stamp" aria-hidden="true">' +
@@ -1919,6 +2149,7 @@
       card.querySelector(".tt-p-icon").textContent = iconSymbol(p.icon);
       card.querySelector(".tt-p-name").textContent = p.name || "Player";
       card.querySelector(".tt-p-life").textContent = (typeof p.life === "number") ? p.life : "–";
+      fillMarkerBadges(card.querySelector(".mk-badges"), p.id, p.citysBlessing);
       var creaturesEl = card.querySelector(".tt-p-creatures");
       (p.creatures || []).forEach(function(c){
         var pt = creaturePT(c);
@@ -2316,6 +2547,7 @@
       state.tokens = [];
       state.creatures = [];
       state.commanderDamage = {};
+      state.citysBlessing = false;
       lastSnapshot = null;
       updateUndoButton();
       saveState();
@@ -2347,6 +2579,7 @@
     renderTable();
     renderCommander();
     renderTabletopOpponents();
+    renderMarkers();
     renderRollBanner();
     updateUndoButton();
   }
@@ -2754,6 +2987,8 @@
     applyManaCollapsed();
     tabletopMode = loadTabletopMode();
     tabletopPositions = loadTabletopPositions();
+    markersCollapsed = loadMarkersCollapsed();
+    applyMarkersCollapsed();
     petEnabled = loadPetEnabled();
     applyPetEnabled();
     applyTabletopMode();

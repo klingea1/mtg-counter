@@ -23,33 +23,20 @@ Work that needs both goes last.
 
 ---
 
-## Now: table-wide designations
+## Now: turn tracker
 
-Monarch, initiative, city's blessing, day/night. All four are single-holder states
-that the whole table needs to see.
-
-This is where the sync model runs out. Every existing stat has a natural owner.
-A designation only one player can hold does not, and the obvious workaround of
-letting one browser hold it raises the question of what happens when two people tap
-at the same moment.
-
-A coin flip resolves a tie at the table, which is fine for play. It is not an answer
-for the code, because the same question comes back immediately with the turn tracker.
-
-- [ ] Decide how table-level state is owned and how conflicts resolve
-- [ ] Monarch and initiative first, since those come up most
-- [ ] Day/night and city's blessing after, same mechanism
-
-Worth solving this properly rather than special-casing monarch, since the next item
-depends on the same answer.
-
-## Then: turn tracker
-
-Whose turn it is, plus a turn counter. Blocked on the designation work above, and
-only worth building once that question has a real answer.
+Whose turn it is, plus a turn counter. Builds on the server's table record (`TABLE`
+in `server.py`, added for the table markers): whose turn it is is one more field on
+it, and simultaneous taps already resolve the same way on every phone.
 
 Deliberately not included: per-player turn timers or a chess clock. Some groups love
 them, some find them hostile, and this one hasn't asked.
+
+## Side project: goblin reacts to the monarch
+
+The pet could celebrate or chase the crown when the monarch changes hands. Needs art
+the current sheet doesn't have, so it's its own project: find or make extra frames
+first, then wire the reaction.
 
 ## Later: persistence, then history
 

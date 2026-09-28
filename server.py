@@ -59,6 +59,18 @@ PLAYERS_LOCK = threading.Lock()
 API_PREFIX = "/api/players"
 JOIN_PATH = "/api/join"
 
+# Table-level state: things that belong to the table rather than to any one
+# player's phone. Every player stat is owned by that player's browser, but only
+# one player can be the monarch, so the server owns these instead. Changes are
+# applied one request at a time under PLAYERS_LOCK, so two phones tapping at
+# once can't disagree: the later request wins and every phone sees the same
+# answer on its next poll. Guarded by PLAYERS_LOCK too, because a holder has
+# to be a player at the table.
+TABLE = {"monarch": None, "initiative": None, "dayNight": None}
+TABLE_PATH = "/api/table"
+HOLDER_KEYS = ("monarch", "initiative")
+DAY_NIGHT = (None, "day", "night")
+
 # The only static files the server will hand out: the app itself, and anything
 # under assets/. Everything else in this folder (docs, tests, build tooling,
 # whatever else someone keeps next to it) is 404 to phones on the wifi.
@@ -377,6 +389,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             with PLAYERS_LOCK:
                 self._send_json(PLAYERS)
             return
+        if self.path == TABLE_PATH:
+            with PLAYERS_LOCK:
+                self._send_json(TABLE)
+            return
         if self.path == JOIN_PATH:
             # The address to hand to the next player. This deliberately does
             # NOT echo back whatever host the asking phone used: someone who
@@ -395,20 +411,52 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         return super().do_GET()
 
+    def _read_json_object(self):
+        """The request body as a dict, or None after sending a 400."""
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            data = json.loads(raw.decode("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("expected an object")
+        except Exception:
+            self._send_json({"error": "invalid json body"}, 400)
+            return None
+        return data
+
     def do_POST(self):
+        if self.path == TABLE_PATH:
+            # A partial update: only the keys sent change. Send null to clear.
+            change = self._read_json_object()
+            if change is None:
+                return
+            for key, value in change.items():
+                if key in HOLDER_KEYS:
+                    if value is not None and not isinstance(value, str):
+                        self._send_json({"error": key + " must be a player id or null"}, 400)
+                        return
+                elif key == "dayNight":
+                    if value not in DAY_NIGHT:
+                        self._send_json({"error": "dayNight must be day, night or null"}, 400)
+                        return
+                else:
+                    self._send_json({"error": "unknown table field: " + key}, 400)
+                    return
+            with PLAYERS_LOCK:
+                for key in HOLDER_KEYS:
+                    if change.get(key) is not None and change[key] not in PLAYERS:
+                        self._send_json({"error": "no such player at the table"}, 400)
+                        return
+                TABLE.update(change)
+                self._send_json(TABLE)
+            return
         if self.path.startswith(API_PREFIX + "/"):
             player_id = self.path[len(API_PREFIX) + 1:]
             if not player_id or len(player_id) > 100:
                 self._send_json({"error": "invalid player id"}, 400)
                 return
-            length = int(self.headers.get("Content-Length", 0) or 0)
-            raw = self.rfile.read(length) if length else b"{}"
-            try:
-                data = json.loads(raw.decode("utf-8"))
-                if not isinstance(data, dict):
-                    raise ValueError("expected an object")
-            except Exception:
-                self._send_json({"error": "invalid json body"}, 400)
+            data = self._read_json_object()
+            if data is None:
                 return
             data["lastSeen"] = time.time()
             with PLAYERS_LOCK:
@@ -423,6 +471,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             player_id = self.path[len(API_PREFIX) + 1:]
             with PLAYERS_LOCK:
                 PLAYERS.pop(player_id, None)
+                # A marker can't be held by someone who's left the table.
+                for key in HOLDER_KEYS:
+                    if TABLE[key] == player_id:
+                        TABLE[key] = None
             self._send_json({"ok": True})
             return
         self.send_response(404)

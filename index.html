@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MTG Counter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%2314100c'/%3E%3Ctext x='50' y='68' font-size='58' font-family='serif' font-weight='800' fill='%23c9a34e' text-anchor='middle'%3E%E2%99%A6%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14100c;
+    --panel:#201811;
+    --panel-2:#2a2015;
+    --border-gold:#8a6a35;
+    --border-gold-soft:rgba(201,163,78,0.35);
+    --text:#f1e6cf;
+    --text-dim:#b3a082;
+    --accent:#c9a34e;
+    --accent-light:#e8cf8a;
+    --danger:#b23a2e;
+    --good:#3f7a52;
+
+    --w:#f0e6c8; --w-light:#fbf6e6; --w-text:#332c17;
+    --u:#2f6fb0; --u-light:#5fa0e0; --u-text:#ffffff;
+    --b:#4a4550; --b-light:#7a7280; --b-text:#ffffff;
+    --r:#b23a2e; --r-light:#e06a52; --r-text:#ffffff;
+    --g:#3f7a52; --g-light:#6fae82; --g-text:#ffffff;
+    --c:#8a8478; --c-light:#b5afa1; --c-text:#241f18;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #2c2113 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 110%, #1a1108 0%, transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overscroll-behavior:none;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    position:relative;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity:0.05;
+    mix-blend-mode:overlay;
+  }
+  #app{min-height:100vh; display:flex; flex-direction:column; position:relative; z-index:1;}
+  .hidden{display:none !important;}
+
+  .fantasy-heading{
+    font-family:"Cinzel", Georgia, serif;
+    font-weight:700;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+  }
+
+  /* ---------- Setup screen ---------- */
+  #setup{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px; gap:20px; text-align:center;
+  }
+  #setup h1{
+    font-family:"Cinzel Decorative","Cinzel",Georgia,serif;
+    font-size:2rem; margin:0; letter-spacing:1px;
+    background:linear-gradient(180deg, var(--accent-light), var(--accent) 60%, #8a6a35);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 1px 0 rgba(0,0,0,0.4);
+  }
+  #setup .flourish{color:var(--border-gold); font-size:0.8rem; letter-spacing:6px;}
+  #setup p.sub{color:var(--text-dim); margin:0; font-size:0.9rem;}
+  .field-label{font-family:"Cinzel",Georgia,serif; font-size:0.72rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;}
+  #playerName{
+    width:220px; text-align:center; font-size:1.1rem; padding:12px; border-radius:12px;
+    border:1px solid var(--border-gold-soft); background:var(--panel-2); color:var(--text);
+    font-family:inherit;
+  }
+  #playerName.invalid{border-color:var(--danger);}
+  .field-hint{color:var(--text-dim); font-size:0.72rem; margin-top:6px;}
+  .life-presets{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .preset-btn{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--border-gold-soft); color:var(--text);
+    padding:14px 20px; border-radius:12px; font-size:1.1rem; font-weight:600; min-width:72px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .preset-btn.selected{border-color:var(--accent); background:linear-gradient(180deg, rgba(201,163,78,0.28), rgba(201,163,78,0.12)); color:var(--accent-light);}
+  #customLifeWrap{display:flex; align-items:center; gap:10px;}
+  #customLife{
+    width:110px; text-align:center; font-size:1.3rem; padding:12px; border-radius:12px;
+    border:1px solid var(--border-gold-soft); background:var(--panel-2); color:var(--text);
+  }
+  .swatches{display:flex; gap:12px; justify-content:center;}
+  .swatch{width:38px; height:38px; border-radius:50%; border:3px solid transparent; box-shadow:0 1px 3px rgba(0,0,0,0.5);}
+  .swatch.selected{border-color:var(--accent-light);}
+
+  .icon-picker-btn{
+    display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--border-gold-soft); color:var(--text);
+    padding:13px 16px; border-radius:12px; font-size:0.95rem; font-weight:600;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .icon-picker-btn.chosen{border-color:var(--accent); color:var(--accent-light);}
+  .icon-picker-btn.invalid{border-color:var(--danger);}
+  .icon-picker-symbol{font-size:1.3rem; line-height:1;}
+  .icon-picker-symbol:empty{display:none;}
+
+  .icon-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:14px;}
+  .icon-choice-btn{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel)); border:1px solid var(--border-gold-soft); color:var(--text);
+    padding:16px 4px; border-radius:12px; font-size:1.6rem; line-height:1;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .icon-choice-btn .label{font-size:0.6rem; letter-spacing:0.5px; text-transform:uppercase; font-family:"Cinzel",Georgia,serif; color:var(--text-dim);}
+  .icon-choice-btn.selected{border-color:var(--accent); background:linear-gradient(180deg, rgba(201,163,78,0.28), rgba(201,163,78,0.12));}
+  .icon-choice-btn.taken{opacity:0.3; filter:grayscale(1);}
+  .icon-choice-btn.taken .label{color:var(--text-dim);}
+
+  .you-icon, .t-icon{font-size:1rem; line-height:1;}
+  .you-icon:empty, .t-icon:empty{display:none;}
+
+  #startBtn{
+    margin-top:8px;
+    background:linear-gradient(180deg, var(--accent-light), var(--accent) 55%, #a1792f);
+    color:#241a04; border:1px solid #6b5024;
+    padding:16px 44px; font-size:1.05rem; font-weight:700; border-radius:14px; letter-spacing:1px;
+    font-family:"Cinzel",Georgia,serif; text-transform:uppercase;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.5), 0 3px 8px rgba(0,0,0,0.4);
+  }
+  #startBtn:active{transform:translateY(1px); box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);}
+  #startBtn:disabled{opacity:0.4;}
+
+  /* ---------- Main screen ---------- */
+  #main{flex:1; display:flex; flex-direction:column;}
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; border-bottom:1px solid var(--border-gold-soft); background:var(--panel);
+  }
+  header .app-name{font-family:"Cinzel",Georgia,serif; font-size:0.72rem; letter-spacing:2px; color:var(--accent); text-transform:uppercase;}
+  header .btns{display:flex; gap:8px;}
+  .icon-btn{
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text-dim);
+    padding:11px 12px; border-radius:10px; font-size:0.75rem;
+    font-family:"Cinzel",Georgia,serif; letter-spacing:0.5px;
+  }
+
+  .ornate-panel{
+    position:relative;
+    border:1px solid var(--border-gold-soft);
+    border-radius:18px;
+    box-shadow:
+      inset 0 0 0 3px var(--bg),
+      inset 0 0 0 4px var(--border-gold-soft),
+      0 4px 14px rgba(0,0,0,0.35);
+  }
+
+  .you-banner{
+    margin:14px 14px 0; padding:10px 12px; border-radius:12px;
+    background:var(--panel-2); border:1px solid var(--border-gold-soft);
+    display:flex; align-items:center; gap:10px;
+  }
+  .you-banner .dot{width:12px; height:12px; border-radius:50%; flex:none; box-shadow:0 0 6px currentColor;}
+  .you-banner .you-name{flex:1; font-weight:700; font-size:1.05rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .you-banner .rename-btn, .you-banner .tabletop-btn{
+    background:none; border:1px solid var(--border-gold-soft); color:var(--accent);
+    padding:6px 10px; border-radius:8px; font-size:0.72rem; font-family:"Cinzel",Georgia,serif; letter-spacing:0.5px;
+  }
+
+  /* ---------- Tabletop View ---------- */
+  #tabletopView{position:fixed; inset:0; z-index:80; background:var(--bg); overflow:hidden;}
+  .tt-self{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse at 50% 90%, rgba(201,163,78,0.14), transparent 60%),
+      linear-gradient(180deg, #191209, var(--panel));
+    transition:filter 0.3s;
+  }
+  .tt-self.defeated{filter:grayscale(0.6) brightness(0.7);}
+  .tt-defeated-stamp{
+    display:none; position:absolute; top:46%; left:50%; z-index:3;
+    transform:translate(-50%,-50%) rotate(-8deg);
+    flex-direction:column; align-items:center; gap:2px;
+    padding:12px 26px; border:3px solid rgba(255,179,168,0.55); border-radius:10px;
+    background:rgba(20,10,8,0.5); pointer-events:none;
+  }
+  .tt-self.defeated .tt-defeated-stamp{display:flex;}
+  .tt-defeated-stamp .tt-stamp-icon{font-size:2.8rem; line-height:1; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6));}
+  .tt-defeated-stamp .tt-stamp-text{
+    font-family:"Cinzel Decorative","Cinzel",Georgia,serif; font-weight:800; letter-spacing:4px;
+    text-transform:uppercase; font-size:1.05rem; color:#ffb3a8;
+    text-shadow:0 2px 4px rgba(0,0,0,0.6);
+  }
+  .tt-tap{position:absolute; top:0; bottom:0; width:50%;}
+  .tt-tap.minus{left:0;}
+  .tt-tap.plus{right:0;}
+  .tt-exit-btn{
+    position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); left:12px; z-index:5;
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text-dim);
+    padding:8px 14px; border-radius:10px; font-size:0.75rem; font-family:"Cinzel",Georgia,serif; letter-spacing:0.5px;
+  }
+  .tt-self-content{
+    position:relative; z-index:1; pointer-events:none;
+    height:100%; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px); gap:8px;
+  }
+  .tt-self-life{
+    font-family:"Cinzel",Georgia,serif; font-size:6.5rem; font-weight:800; line-height:1;
+    font-variant-numeric:tabular-nums; color:var(--accent-light);
+    text-shadow:0 2px 0 rgba(0,0,0,0.5), 0 0 24px rgba(201,163,78,0.25);
+  }
+  .tt-self-sub{color:var(--text-dim); font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:"Cinzel",Georgia,serif;}
+  .tt-self-row{display:flex; align-items:center; gap:8px; font-weight:700; font-size:1.15rem;}
+  .tt-self-creatures{
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:90%; pointer-events:auto;
+    margin-bottom:4px;
+  }
+
+  .tt-opponents{position:absolute; inset:0; z-index:2; pointer-events:none;}
+  .tt-player{
+    position:absolute; transform:translate(-50%,-50%); touch-action:none; pointer-events:auto;
+    background:var(--panel-2); border:2px solid var(--border-gold-soft); border-radius:14px;
+    padding:10px 12px; min-width:104px; max-width:130px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.4);
+    cursor:grab; transition:opacity 0.2s, filter 0.3s;
+  }
+  .tt-player.dragging{cursor:grabbing; z-index:10; box-shadow:0 8px 24px rgba(0,0,0,0.6); transition:none;}
+  .tt-player.away{opacity:0.5;}
+  .tt-player.defeated{filter:grayscale(0.6) brightness(0.75);}
+  .tt-player .tt-p-row{display:flex; align-items:center; justify-content:center; gap:5px; margin-bottom:4px;}
+  .tt-player .dot{width:10px; height:10px; border-radius:50%; flex:none; box-shadow:0 0 6px currentColor;}
+  .tt-player .tt-p-name{font-weight:700; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px;}
+  .tt-player .tt-p-life{
+    font-family:"Cinzel",Georgia,serif; font-size:1.9rem; font-weight:800; color:var(--accent-light);
+    font-variant-numeric:tabular-nums; line-height:1;
+  }
+  .tt-player .tt-p-creatures{display:flex; gap:4px; flex-wrap:wrap; justify-content:center; margin-top:5px;}
+  .tt-player .tt-p-chip{
+    font-size:0.72rem; font-weight:800; padding:2px 7px; border-radius:999px;
+    background:rgba(0,0,0,0.25); color:var(--accent-light);
+  }
+  .tt-player .tt-p-chip .pt-neg{color:var(--danger);}
+  .tt-player .tt-defeated-stamp{
+    display:none; position:absolute; top:40%; left:50%; z-index:2;
+    transform:translate(-50%,-50%) rotate(-8deg);
+    flex-direction:row; align-items:center; gap:4px; white-space:nowrap;
+    padding:3px 9px; border:2px solid rgba(255,179,168,0.55); border-radius:8px;
+    background:rgba(20,10,8,0.68); pointer-events:none;
+  }
+  .tt-player.defeated .tt-defeated-stamp{display:flex;}
+  .tt-player .tt-defeated-stamp .tt-stamp-icon{font-size:1.05rem; line-height:1; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6));}
+  .tt-player .tt-defeated-stamp .tt-stamp-text{
+    font-family:"Cinzel Decorative","Cinzel",Georgia,serif; font-weight:800; letter-spacing:2px;
+    text-transform:uppercase; font-size:0.6rem; color:#ffb3a8;
+    text-shadow:0 2px 3px rgba(0,0,0,0.6);
+  }
+
+  .tt-snap-markers{position:absolute; inset:0; z-index:6; pointer-events:none;}
+  .tt-snap-marker{
+    position:absolute; transform:translate(-50%,-50%);
+    width:60px; height:60px; border-radius:14px;
+    border:2px dashed var(--border-gold-soft);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0.5; transition:opacity 0.15s, border-color 0.15s, background-color 0.15s;
+  }
+  .tt-snap-marker::after{
+    content:""; width:8px; height:8px; border-radius:50%; background:var(--border-gold-soft);
+  }
+  .tt-snap-marker.nearest{
+    opacity:1; border-color:var(--accent-light); border-style:solid;
+    background:rgba(201,163,78,0.14);
+  }
+  .tt-snap-marker.nearest::after{background:var(--accent-light); box-shadow:0 0 8px var(--accent-light);}
+
+  .life-card{
+    margin:14px; min-height:24vh;
+    display:flex;
+    background:
+      radial-gradient(ellipse at 50% 20%, rgba(201,163,78,0.10), transparent 60%),
+      linear-gradient(180deg, var(--panel), #191209);
+    transition:filter 0.3s;
+  }
+  .life-card.defeated{filter:grayscale(0.6) brightness(0.75);}
+  .undo-fab{
+    position:absolute; top:10px; right:10px; z-index:3;
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text-dim);
+    padding:7px 12px; border-radius:10px; font-size:0.72rem;
+    font-family:"Cinzel",Georgia,serif; letter-spacing:0.5px;
+  }
+  .undo-fab:disabled{opacity:0.3;}
+  .defeated-tag{
+    display:none; margin-top:6px; color:#ffb3a8; font-size:0.72rem; letter-spacing:2px;
+    text-transform:uppercase; font-family:"Cinzel",Georgia,serif; font-weight:700;
+  }
+  .defeated-tag.show{display:inline-block;}
+  .life-tap{
+    position:absolute; top:0; bottom:0; width:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .life-tap.minus{left:0;}
+  .life-tap.plus{right:0;}
+  .life-center{
+    position:relative; z-index:1; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    flex:1; gap:2px;
+  }
+  #lifeValue{
+    font-family:"Cinzel",Georgia,serif;
+    font-size:5rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums;
+    color:var(--accent-light);
+    text-shadow:0 2px 0 rgba(0,0,0,0.5), 0 0 24px rgba(201,163,78,0.25);
+  }
+  #lifeValue.flash-up{color:var(--good);}
+  #lifeValue.flash-down{color:var(--danger);}
+  .life-sub{color:var(--text-dim); font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:"Cinzel",Georgia,serif;}
+  .life-mana-summary{display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; justify-content:center; max-width:80%; min-height:1.3rem;}
+  .life-mana-summary .lm-item{font-size:1.15rem; font-weight:800; font-family:"Cinzel",Georgia,serif; font-variant-numeric:tabular-nums;}
+
+  .roll-banner{
+    position:absolute; left:0; right:0; bottom:0; z-index:2;
+    padding:12px 14px; text-align:center; pointer-events:none;
+    background:linear-gradient(0deg, rgba(0,0,0,0.7), rgba(0,0,0,0));
+    border-radius:0 0 18px 18px;
+    font-family:"Cinzel",Georgia,serif; font-size:0.9rem; font-weight:700; letter-spacing:0.5px;
+    color:var(--accent-light);
+    opacity:0; transform:translateY(4px);
+    transition:opacity 0.35s ease, transform 0.35s ease;
+  }
+  .roll-banner.show{opacity:1; transform:translateY(0);}
+  .quick-row{
+    display:flex; justify-content:center; gap:10px; padding:0 14px 14px; flex-wrap:wrap;
+  }
+  .quick-btn{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--border-gold-soft); color:var(--text);
+    padding:10px 18px; border-radius:12px; font-size:0.95rem; font-weight:600;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .quick-btn:active{transform:translateY(1px);}
+
+  section.block{margin:0 14px 14px; background:linear-gradient(180deg, var(--panel), #17110b); padding:14px;}
+  .block h2{
+    margin:0 0 12px; font-size:0.72rem; letter-spacing:2px; text-transform:uppercase; color:var(--accent);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-family:"Cinzel",Georgia,serif;
+  }
+  .block h2 .count-tag{color:var(--text-dim); font-weight:500; letter-spacing:0.5px; text-transform:none; font-size:0.68rem;}
+  .clear-link{background:none; border:none; color:var(--accent); font-size:0.68rem; letter-spacing:0.5px; text-transform:none; font-weight:600; font-family:"Cinzel",Georgia,serif;}
+  .mana-header-row{display:flex; justify-content:flex-end; margin-bottom:8px;}
+
+  .mana-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;}
+  .mana-pip{
+    border-radius:14px; padding:10px 4px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px;
+    box-shadow:inset 0 2px 4px rgba(255,255,255,0.18), inset 0 -3px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.3);
+  }
+  .mana-pip .sym{font-family:"Cinzel",Georgia,serif; font-size:1.05rem; font-weight:800;}
+  .mana-pip .cnt{font-size:1.5rem; font-weight:800; font-variant-numeric:tabular-nums;}
+  .mana-pip .steppers{display:flex; gap:6px;}
+  .mana-pip button{
+    width:40px; height:40px; border-radius:10px; border:none; font-size:1.2rem; font-weight:700;
+    background:rgba(0,0,0,0.2); color:inherit;
+  }
+
+  .creature-list{display:flex; flex-wrap:wrap; gap:10px;}
+  .creature-chip{
+    position:relative; width:92px; background:var(--panel-2); border:1px solid var(--border-gold-soft);
+    border-radius:14px; padding:10px 6px 8px; display:flex; flex-direction:column; align-items:center; gap:6px;
+    box-shadow:inset 0 2px 4px rgba(255,255,255,0.18), inset 0 -3px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.3);
+    transition:width 0.15s, min-height 0.15s;
+  }
+  .creature-chip.expanded{width:176px;}
+  .creature-chip .cnt{
+    width:auto; height:auto; background:none; border:none; padding:0; margin:0;
+    display:flex; align-items:baseline; gap:2px; font-family:inherit; cursor:pointer;
+    font-size:1.2rem; font-weight:800; font-variant-numeric:tabular-nums; color:var(--accent-light);
+  }
+  .creature-chip .cnt .pt-neg{color:var(--danger);}
+  .creature-chip .steppers{display:flex; gap:6px;}
+  .creature-chip.expanded .steppers.sym-steppers{display:none;}
+  .creature-chip button{
+    width:36px; height:36px; border-radius:10px; border:none; font-size:1.05rem; font-weight:700;
+    background:rgba(0,0,0,0.2); color:inherit;
+  }
+  .creature-chip .del{
+    position:absolute; top:-8px; right:-8px; width:24px; height:24px; border-radius:50%;
+    background:var(--panel); border:1px solid var(--border-gold-soft); color:var(--text-dim);
+    font-size:0.75rem; display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .creature-chip .pt-axes{display:none; flex-direction:column; gap:5px; width:100%;}
+  .creature-chip.expanded .pt-axes{display:flex;}
+  .creature-chip .pt-axis{
+    display:flex; align-items:center; justify-content:space-between; gap:4px;
+    background:rgba(0,0,0,0.2); border-radius:9px; padding:3px;
+  }
+  .creature-chip .pt-axis button{width:30px; height:30px; border-radius:7px; font-size:0.9rem;}
+  .creature-chip .pt-axis-label{
+    font-size:0.62rem; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); font-weight:700;
+    display:flex; flex-direction:column; align-items:center; line-height:1.3; flex:1;
+  }
+  .creature-chip .pt-axis-label .pt-val{
+    font-size:0.9rem; color:var(--accent-light); font-variant-numeric:tabular-nums; letter-spacing:0;
+  }
+  .creature-chip .pt-axis-label .pt-val.pt-neg{color:var(--danger);}
+  .creature-chip.add{
+    border-style:dashed; justify-content:center; min-height:88px; color:var(--text-dim); font-size:1.8rem;
+    background:transparent; box-shadow:none;
+  }
+  .creature-chip.add button{
+    width:100%; height:100%; background:none; border:none; color:inherit; font-size:1.8rem; font-family:inherit;
+  }
+
+  .token-list{display:flex; flex-direction:column; gap:8px;}
+  .token-row{
+    display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--border-gold-soft);
+    border-radius:12px; padding:8px 10px;
+  }
+  .token-row .dot{width:10px; height:10px; border-radius:50%; flex:none; box-shadow:0 0 6px currentColor;}
+  .token-row .name{flex:1; font-size:0.95rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .token-row .cnt{min-width:26px; text-align:center; font-size:1.15rem; font-weight:800; font-variant-numeric:tabular-nums;}
+  .token-row button{
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--border-gold-soft); background:var(--panel);
+    color:var(--text); font-size:1.1rem; font-weight:700;
+  }
+  .token-row .del{border:none; background:none; color:var(--text-dim); width:32px; height:38px; font-size:1.1rem;}
+  .empty-hint{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:6px 0; font-style:italic;}
+
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .chip{
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text-dim);
+    padding:7px 12px; border-radius:999px; font-size:0.8rem;
+  }
+  .add-row{display:flex; gap:8px; margin-top:10px;}
+  #newTokenName{
+    flex:1; background:var(--panel-2); border:1px solid var(--border-gold-soft); color:var(--text);
+    border-radius:10px; padding:10px 12px; font-size:0.9rem; font-family:inherit;
+  }
+  #addTokenBtn{
+    background:linear-gradient(180deg, var(--accent-light), var(--accent)); color:#241a04; border:1px solid #6b5024;
+    border-radius:10px; padding:10px 16px; font-weight:700; font-size:0.9rem; font-family:"Cinzel",Georgia,serif;
+  }
+
+  /* ---------- The Table (shared player view) ---------- */
+  .table-list{display:flex; flex-direction:column; gap:8px;}
+  .table-card{
+    background:var(--panel-2); border:1px solid var(--border-gold-soft); border-radius:12px; padding:10px 12px;
+    transition:opacity 0.2s;
+  }
+  .table-card.away{opacity:0.5;}
+  .table-card.defeated .t-name{text-decoration:line-through; color:var(--text-dim);}
+  .table-card-top{display:flex; align-items:center; gap:10px; cursor:pointer;}
+  .table-card .dot{width:12px; height:12px; border-radius:50%; flex:none; box-shadow:0 0 6px currentColor;}
+  .table-card .t-name{flex:1; font-weight:700; font-size:0.98rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .table-card .t-away-tag{font-size:0.68rem; color:var(--text-dim); font-style:italic; margin-left:4px; font-weight:400;}
+  .table-card .t-defeated-tag{
+    font-size:0.62rem; color:#2a0f0b; background:#e0847a; padding:2px 7px; border-radius:999px;
+    letter-spacing:0.5px; font-weight:700; margin-left:4px; font-family:"Cinzel",Georgia,serif; text-transform:uppercase;
+  }
+  .table-card .t-life{
+    font-family:"Cinzel",Georgia,serif; font-size:1.5rem; font-weight:800; color:var(--accent-light);
+    font-variant-numeric:tabular-nums; min-width:34px; text-align:right;
+  }
+  .table-card .t-toggle{
+    background:none; border:none; color:var(--text-dim); font-size:0.9rem; padding:4px 2px 4px 8px;
+    transition:transform 0.2s;
+  }
+  .table-card.open .t-toggle{transform:rotate(180deg);}
+  .table-card-detail{margin-top:8px; padding-top:8px; border-top:1px solid rgba(201,163,78,0.15); font-size:0.82rem; color:var(--text-dim);}
+  .table-card-detail div{margin-bottom:4px;}
+  .table-card-detail div:last-child{margin-bottom:0;}
+  .t-roll-status{
+    margin-top:8px; padding:6px 10px; border-radius:8px; text-align:center;
+    background:rgba(201,163,78,0.16); border:1px solid var(--border-gold-soft);
+    font-size:0.78rem; font-weight:700; color:var(--accent-light); font-family:"Cinzel",Georgia,serif;
+  }
+
+  /* ---------- Commander Damage ---------- */
+  .section-toggle{
+    background:none; border:none; color:var(--text-dim); font-size:0.68rem; letter-spacing:0.5px;
+    font-family:"Cinzel",Georgia,serif; text-transform:none; display:flex; align-items:center; gap:4px;
+    padding:14px 8px; margin:-14px -8px; flex:none;
+  }
+  .cmdr-list{display:flex; flex-direction:column; gap:8px;}
+  .cmdr-row{
+    display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--border-gold-soft);
+    border-radius:12px; padding:8px 10px; transition:background 0.2s, border-color 0.2s;
+  }
+  .cmdr-row.lethal{background:rgba(178,58,46,0.28); border-color:var(--danger);}
+  .cmdr-row .dot{width:10px; height:10px; border-radius:50%; flex:none; box-shadow:0 0 6px currentColor;}
+  .cmdr-row .name{flex:1; font-size:0.95rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cmdr-row .lethal-tag{font-size:0.6rem; color:#2a0f0b; background:var(--danger); padding:2px 6px; border-radius:999px; font-weight:700; letter-spacing:0.5px; font-family:"Cinzel",Georgia,serif; text-transform:uppercase;}
+  .cmdr-row .cnt{min-width:28px; text-align:center; font-size:1.15rem; font-weight:800; font-variant-numeric:tabular-nums;}
+  .cmdr-row button{
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--border-gold-soft); background:var(--panel);
+    color:var(--text); font-size:1.1rem; font-weight:700;
+  }
+
+  footer{text-align:center; color:var(--text-dim); font-size:0.7rem; padding:6px 0 18px;}
+
+  /* modal */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:20; padding:20px;
+  }
+  .modal{background:var(--panel); border:1px solid var(--border-gold-soft); border-radius:16px; padding:20px; max-width:320px; width:100%; text-align:center;}
+  .modal p{margin:0 0 16px; font-size:0.95rem;}
+  .modal input[type="text"]{
+    width:100%; text-align:center; font-size:1.05rem; padding:12px; border-radius:10px;
+    border:1px solid var(--border-gold-soft); background:var(--panel-2); color:var(--text);
+    font-family:inherit; margin-bottom:16px;
+  }
+  .modal .row{display:flex; gap:10px;}
+  .modal button{flex:1; padding:12px; border-radius:10px; border:1px solid var(--border-gold-soft); background:var(--panel-2); color:var(--text); font-weight:600;}
+  .modal button.confirm{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .modal button.save{background:linear-gradient(180deg, var(--accent-light), var(--accent)); border-color:#6b5024; color:#241a04;}
+
+  .die-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;}
+  .die-btn{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel)); border:1px solid var(--border-gold-soft); color:var(--text);
+    padding:12px 4px; border-radius:10px; font-size:0.95rem; font-weight:700; font-family:"Cinzel",Georgia,serif;
+  }
+  .die-btn.selected{border-color:var(--accent); color:var(--accent-light);}
+  #flipCoinBtn{
+    width:100%; margin-bottom:10px;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel)); border:1px solid var(--border-gold-soft); color:var(--text);
+    padding:12px; border-radius:10px; font-weight:700; font-family:"Cinzel",Georgia,serif;
+  }
+
+  /* ---------- Share / invite ---------- */
+  .share-btn{
+    background:none; border:none; color:var(--accent); font-size:0.68rem; letter-spacing:0.5px;
+    text-transform:none; font-weight:600; font-family:"Cinzel",Georgia,serif;
+    padding:14px 8px; margin:-14px -8px; flex:none;
+  }
+  #setupShareBtn{
+    margin-top:16px; background:none; border:none; color:var(--text-dim);
+    font-family:"Cinzel",Georgia,serif; font-size:0.72rem; letter-spacing:1px; padding:12px 8px;
+  }
+  #setupShareBtn span{color:var(--accent); border-bottom:1px solid var(--border-gold-soft);}
+  .qr-frame{
+    background:#fff; border-radius:12px; padding:12px; display:inline-block; line-height:0;
+    margin-bottom:14px; box-shadow:0 2px 14px rgba(0,0,0,0.4);
+  }
+  .qr-frame canvas{display:block; max-width:100%; height:auto;}
+  .share-url{
+    display:block; width:100%; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:0.92rem; color:var(--accent-light); background:var(--panel-2);
+    border:1px solid var(--border-gold-soft); border-radius:10px; padding:11px 8px;
+    margin-bottom:8px; word-break:break-all; text-decoration:none;
+    -webkit-user-select:all; user-select:all;
+  }
+  .share-alt{color:var(--text-dim); font-size:0.7rem; margin:0 0 14px; line-height:1.45;}
+  .share-alt code{color:var(--accent); font-family:inherit;}
+  .modal a.share-sms{
+    display:block; padding:13px; border-radius:10px; text-decoration:none;
+    border:1px solid var(--border-gold-soft); background:var(--panel-2); color:var(--text);
+    font-weight:600; margin-bottom:10px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= SETUP ================= -->
+  <div id="setup">
+    <div class="flourish">✦ ✦ ✦</div>
+    <h1>MTG Counter</h1>
+    <p class="sub">Name yourself, set your starting life, pick a color and icon.<br>Everyone at the table can see everyone else.</p>
+
+    <div>
+      <div class="field-label">Your name</div>
+      <input type="text" id="playerName" placeholder="e.g. Sam" maxlength="18" required>
+      <div class="field-hint">Needed so others at the table know whose stats they're looking at.</div>
+    </div>
+
+    <div>
+      <div class="field-label">Starting life</div>
+      <div class="life-presets" id="lifePresets">
+        <button class="preset-btn" data-life="20">20</button>
+        <button class="preset-btn" data-life="30">30</button>
+        <button class="preset-btn selected" data-life="40">40</button>
+        <button class="preset-btn" data-life="custom">Custom</button>
+      </div>
+      <div id="customLifeWrap" class="hidden" style="margin-top:12px;">
+        <input type="number" id="customLife" inputmode="numeric" placeholder="Life">
+      </div>
+    </div>
+
+    <div>
+      <div class="field-label">Accent color</div>
+      <div class="swatches" id="swatches">
+        <div class="swatch selected" data-color="#c9a34e" style="background:#c9a34e;"></div>
+        <div class="swatch" data-color="#2f6fb0" style="background:#2f6fb0;"></div>
+        <div class="swatch" data-color="#c0475a" style="background:#c0475a;"></div>
+        <div class="swatch" data-color="#4a9d6f" style="background:#4a9d6f;"></div>
+        <div class="swatch" data-color="#8a5fc4" style="background:#8a5fc4;"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="field-label">Icon</div>
+      <button type="button" class="icon-picker-btn" id="iconPickerBtn">
+        <span class="icon-picker-symbol" id="iconPickerSymbol"></span>
+        <span id="iconPickerText">Choose Icon</span>
+      </button>
+      <div class="field-hint">Each player's icon is unique at the table — already-claimed ones won't be selectable.</div>
+    </div>
+
+    <button id="startBtn">Enter the Table</button>
+
+    <button type="button" id="setupShareBtn">Someone next to you joining? <span>Show the join code</span></button>
+  </div>
+
+  <!-- ================= MAIN ================= -->
+  <div id="main" class="hidden">
+    <header>
+      <span class="app-name">✦ MTG Counter ✦</span>
+      <div class="btns">
+        <button class="icon-btn" id="resetBtn">Reset</button>
+        <button class="icon-btn" id="newGameBtn">New Game</button>
+      </div>
+    </header>
+
+    <div class="you-banner" id="youBanner">
+      <span class="dot" id="youDot"></span>
+      <span class="you-icon" id="youIcon"></span>
+      <span class="you-name" id="youNameLabel"></span>
+      <button class="tabletop-btn" id="tabletopToggleBtn">🗺️ Tabletop</button>
+      <button class="rename-btn" id="renameBtn">✎ Rename</button>
+    </div>
+
+    <!-- ================= TABLETOP VIEW ================= -->
+    <div id="tabletopView" class="hidden">
+      <button class="tt-exit-btn" id="tabletopExitBtn">✕ Exit</button>
+      <div class="tt-self" id="ttSelf">
+        <div class="tt-tap minus" id="ttLifeMinusTap"></div>
+        <div class="tt-tap plus" id="ttLifePlusTap"></div>
+        <div class="tt-self-content">
+          <div class="tt-self-creatures" id="ttSelfCreatures"></div>
+          <div class="tt-self-life" id="ttLifeValue">40</div>
+          <div class="tt-self-sub">tap sides ±1</div>
+          <div class="tt-self-row">
+            <span class="tt-self-icon" id="ttSelfIcon"></span>
+            <span class="tt-self-name" id="ttSelfName"></span>
+          </div>
+        </div>
+        <div class="tt-defeated-stamp" aria-hidden="true">
+          <span class="tt-stamp-icon">🪦</span>
+          <span class="tt-stamp-text">Defeated</span>
+        </div>
+      </div>
+      <div class="tt-opponents" id="ttOpponents"></div>
+      <div class="tt-snap-markers hidden" id="ttSnapMarkers"></div>
+    </div>
+
+    <div class="life-card ornate-panel" id="lifeCard">
+      <button class="undo-fab" id="undoBtn" disabled>↺ Undo</button>
+      <div class="life-tap minus" id="lifeMinusTap"></div>
+      <div class="life-tap plus" id="lifePlusTap"></div>
+      <div class="life-center">
+        <div id="lifeValue">40</div>
+        <div class="life-sub">life &nbsp;·&nbsp; tap sides ±1</div>
+        <div class="defeated-tag" id="defeatedTag">☠ Defeated</div>
+        <div class="life-mana-summary" id="lifeManaSummary"></div>
+      </div>
+      <div class="roll-banner" id="rollBanner"></div>
+    </div>
+    <div class="quick-row">
+      <button class="quick-btn" id="minus5">−5</button>
+      <button class="quick-btn" id="minus1">−1</button>
+      <button class="quick-btn" id="plus1">+1</button>
+      <button class="quick-btn" id="plus5">+5</button>
+      <button class="quick-btn" id="rollBtn">🎲 Roll</button>
+    </div>
+
+    <section class="block ornate-panel" id="tableSection">
+      <h2>
+        <span>The Table <span class="count-tag" id="tableCount"></span></span>
+        <button class="share-btn" id="tableShareBtn">Invite ▸</button>
+      </h2>
+      <div class="table-list" id="tableList"></div>
+      <div class="empty-hint" id="tableEmptyHint">Waiting for others to join on this wifi…</div>
+    </section>
+
+    <section class="block ornate-panel">
+      <h2>
+        <span>Commander Damage <span class="count-tag">taken by you</span></span>
+        <button class="section-toggle" id="cmdrToggleBtn">▾ Show</button>
+      </h2>
+      <div id="cmdrBody" class="hidden">
+        <div class="cmdr-list" id="cmdrList"></div>
+        <div class="empty-hint" id="cmdrEmptyHint">No opponents at the table yet.</div>
+      </div>
+    </section>
+
+    <section class="block ornate-panel">
+      <h2>
+        <span>Mana Pool</span>
+        <button class="section-toggle" id="manaToggleBtn">▾ Hide</button>
+      </h2>
+      <div id="manaBody">
+        <div class="mana-header-row"><button class="clear-link" id="clearMana">Clear All</button></div>
+        <div class="mana-grid" id="manaGrid"></div>
+      </div>
+    </section>
+
+    <section class="block ornate-panel">
+      <h2>
+        <span>Creature Counters <span class="count-tag">+1/+1, shared with the table</span></span>
+      </h2>
+      <div class="creature-list" id="creatureList"></div>
+      <div class="empty-hint hidden" id="creatureEmptyHint">No creatures tracked yet — tap + to add one.</div>
+    </section>
+
+    <section class="block ornate-panel">
+      <h2>Tokens</h2>
+      <div class="token-list" id="tokenList"></div>
+      <div class="empty-hint hidden" id="tokenEmptyHint">No tokens yet — add one below.</div>
+      <div class="chip-row" id="quickChips"></div>
+      <div class="add-row">
+        <input type="text" id="newTokenName" placeholder="Custom token name" maxlength="24">
+        <button id="addTokenBtn">Add</button>
+      </div>
+    </section>
+
+    <footer>Built for kitchen-table Magic. Life, mana &amp; tokens sync live to everyone at the table.</footer>
+  </div>
+
+  <!-- ================= CONFIRM MODAL ================= -->
+  <div class="modal-backdrop hidden" id="confirmModal">
+    <div class="modal">
+      <p id="confirmText">Are you sure?</p>
+      <div class="row">
+        <button id="confirmCancel">Cancel</button>
+        <button class="confirm" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RENAME MODAL ================= -->
+  <div class="modal-backdrop hidden" id="renameModal">
+    <div class="modal">
+      <p>Change your name</p>
+      <input type="text" id="renameInput" maxlength="18">
+      <div class="row">
+        <button id="renameCancel">Cancel</button>
+        <button class="save" id="renameSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ROLL MODAL ================= -->
+  <div class="modal-backdrop hidden" id="rollModal">
+    <div class="modal">
+      <p>Roll something</p>
+      <div class="die-grid" id="dieGrid">
+        <button class="die-btn" data-die="4">d4</button>
+        <button class="die-btn" data-die="6">d6</button>
+        <button class="die-btn" data-die="8">d8</button>
+        <button class="die-btn" data-die="10">d10</button>
+        <button class="die-btn" data-die="12">d12</button>
+        <button class="die-btn selected" data-die="20">d20</button>
+      </div>
+      <button id="flipCoinBtn">🪙 Flip a Coin</button>
+      <div class="row">
+        <button id="rollCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SHARE MODAL ================= -->
+  <div class="modal-backdrop hidden" id="shareModal">
+    <div class="modal">
+      <p>Scan to join the table</p>
+      <div class="qr-frame" id="shareQrFrame"><canvas id="shareQr"></canvas></div>
+      <a class="share-url" id="shareUrl" href="#"></a>
+      <p class="share-alt hidden" id="shareAlt"></p>
+      <a class="share-sms" id="shareSms" href="#">Text the link</a>
+      <div class="row">
+        <button id="shareClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ICON MODAL ================= -->
+  <div class="modal-backdrop hidden" id="iconModal">
+    <div class="modal">
+      <p>Choose your icon</p>
+      <div class="icon-grid" id="iconGrid"></div>
+      <div class="row">
+        <button id="iconModalClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "mtg-counter-state-v2";
+  var PLAYER_ID_KEY = "mtg-counter-player-id";
+  var LAST_NAME_KEY = "mtg-counter-last-name";
+  var CMDR_COLLAPSED_KEY = "mtg-counter-cmdr-collapsed";
+  var MANA_COLLAPSED_KEY = "mtg-counter-mana-collapsed";
+  var TABLETOP_MODE_KEY = "mtg-counter-tabletop-mode";
+  var TT_POSITIONS_KEY = "mtg-counter-tabletop-positions";
+
+  // 12 discrete seating slots around the arena, as {top%, left%} of the tabletop view.
+  // The screen is taller than it is wide, so the left/right ("lateral") edges get three
+  // slots each (hi/mid/lo) instead of one -- that's where a real table has the most
+  // physical room for people to sit relative to you. Index order: N, NE, E-hi, E, E-lo,
+  // SE, S, SW, W-lo, W, W-hi, NW.
+  // Left/right extremes are nudged in slightly from the true edge (rather than 14/86)
+  // to leave room for the .tt-player card's own width (up to 130px, see CSS) plus its
+  // creature-counter row, so a card centered on one of these slots doesn't get clipped
+  // by #tabletopView's overflow:hidden.
+  var TT_SLOTS = [
+    {top:7,  left:50}, // 0  N       (across the table)
+    {top:18, left:76}, // 1  NE
+    {top:34, left:82}, // 2  E-hi
+    {top:50, left:83}, // 3  E
+    {top:66, left:82}, // 4  E-lo
+    {top:82, left:76}, // 5  SE
+    {top:91, left:50}, // 6  S       (right next to you — used last by default)
+    {top:82, left:24}, // 7  SW
+    {top:66, left:18}, // 8  W-lo
+    {top:50, left:17}, // 9  W
+    {top:34, left:18}, // 10 W-hi
+    {top:18, left:24}  // 11 NW
+  ];
+  // Default fill order for newly-seen opponents: across first, then mid sides,
+  // then corners, then the extra hi/lo edge slots, S last.
+  var TT_FILL_ORDER = [0, 3, 9, 1, 11, 5, 7, 2, 10, 4, 8, 6];
+  var POLL_MS = 1500;
+  var AWAY_SECONDS = 8;
+
+  var MANA_COLORS = [
+    {key:"W", label:"W", var:"--w"},
+    {key:"U", label:"U", var:"--u"},
+    {key:"B", label:"B", var:"--b"},
+    {key:"R", label:"R", var:"--r"},
+    {key:"G", label:"G", var:"--g"},
+    {key:"C", label:"C", var:"--c"}
+  ];
+
+  var QUICK_TOKENS = ["Treasure","Clue","Food","Blood","Poison","Experience","Energy"];
+
+  var TOKEN_COLORS = {
+    treasure:"#d4af37",
+    clue:"#5b8dc4",
+    food:"#b06a3a",
+    blood:"#a13a3a",
+    poison:"#4f9d5c",
+    experience:"#8a5fc4",
+    energy:"#3fb6c9"
+  };
+
+  function tokenColor(name){
+    return TOKEN_COLORS[(name || "").trim().toLowerCase()] || null;
+  }
+
+  var ICONS = [
+    {key:"sword", sym:"⚔️", label:"Sword"},
+    {key:"shield", sym:"🛡️", label:"Shield"},
+    {key:"dragon", sym:"🐉", label:"Dragon"},
+    {key:"skull", sym:"💀", label:"Skull"},
+    {key:"crown", sym:"👑", label:"Crown"},
+    {key:"flame", sym:"🔥", label:"Flame"}
+  ];
+
+  function iconSymbol(key){
+    var found = null;
+    ICONS.forEach(function(i){ if(i.key === key) found = i; });
+    return found ? found.sym : "";
+  }
+
+  var state = null;
+  var PLAYER_ID = null;
+  var pollTimer = null;
+  var expandedIds = {};
+  var latestPlayers = {};
+  var rollStatus = null; // {phase:'rolling'|'result', label:'d20'|'Coin', result:string|null} or null
+  var cmdrCollapsed = true;
+  var manaCollapsed = false;
+  var tabletopMode = false;
+  var tabletopPositions = {}; // playerId -> slot index (0-7), local-only, never broadcast
+  var ttDraggingId = null;    // player id currently being dragged, or null
+
+  function defaultState(){
+    return {
+      started:false,
+      name:"",
+      startingLife:40,
+      life:40,
+      accent:"#c9a34e",
+      icon:null,
+      mana:{W:0,U:0,B:0,R:0,G:0,C:0},
+      tokens:[], // {id, name, count}
+      creatures:[], // {id, power, toughness} -- independent P/T deltas on a creature, no
+                    // name, each can go negative (e.g. -1/-1, or asymmetric like +1/+0)
+      commanderDamage:{} // opponentId -> {name, accent, amount}
+    };
+  }
+
+  function randomId(){
+    if(self.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+  }
+
+  function getOrCreatePlayerId(){
+    var id = null;
+    try{ id = localStorage.getItem(PLAYER_ID_KEY); }catch(e){}
+    if(!id){
+      id = randomId();
+      try{ localStorage.setItem(PLAYER_ID_KEY, id); }catch(e){}
+    }
+    return id;
+  }
+
+  // Reads power/toughness off a creature counter regardless of shape: the current
+  // {id, power, toughness} shape, or the older {id, count} shape (own saved state from
+  // before asymmetric counters existed, or a live broadcast from another player's
+  // device that hasn't updated yet) -- old data degrades gracefully to a symmetric
+  // counter rather than breaking.
+  function creaturePT(c){
+    if(c && typeof c.power === "number" && typeof c.toughness === "number"){
+      return {power:c.power, toughness:c.toughness};
+    }
+    var n = (c && typeof c.count === "number") ? c.count : 1;
+    return {power:n, toughness:n};
+  }
+
+  function migrateCreatures(list){
+    return (list || []).map(function(c){
+      var pt = creaturePT(c);
+      return {id: (c && c.id) || creatureUid(), power: pt.power, toughness: pt.toughness};
+    });
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      var base = defaultState();
+      var merged = Object.assign(base, parsed, {mana: Object.assign(base.mana, parsed.mana || {})});
+      merged.creatures = migrateCreatures(merged.creatures);
+      return merged;
+    }catch(e){
+      return defaultState();
+    }
+  }
+
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){ /* storage unavailable — app still works, just won't persist */ }
+    pushSnapshot();
+  }
+
+  function tokenUid(){
+    return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  function creatureUid(){
+    return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  // ---------- DOM refs ----------
+  var el = {
+    setup: document.getElementById("setup"),
+    main: document.getElementById("main"),
+    playerName: document.getElementById("playerName"),
+    lifePresets: document.getElementById("lifePresets"),
+    customLifeWrap: document.getElementById("customLifeWrap"),
+    customLife: document.getElementById("customLife"),
+    swatches: document.getElementById("swatches"),
+    iconPickerBtn: document.getElementById("iconPickerBtn"),
+    iconPickerSymbol: document.getElementById("iconPickerSymbol"),
+    iconPickerText: document.getElementById("iconPickerText"),
+    iconModal: document.getElementById("iconModal"),
+    iconGrid: document.getElementById("iconGrid"),
+    iconModalClose: document.getElementById("iconModalClose"),
+    startBtn: document.getElementById("startBtn"),
+    lifeValue: document.getElementById("lifeValue"),
+    lifeCard: document.getElementById("lifeCard"),
+    lifeMinusTap: document.getElementById("lifeMinusTap"),
+    lifePlusTap: document.getElementById("lifePlusTap"),
+    minus5: document.getElementById("minus5"),
+    minus1: document.getElementById("minus1"),
+    plus1: document.getElementById("plus1"),
+    plus5: document.getElementById("plus5"),
+    undoBtn: document.getElementById("undoBtn"),
+    defeatedTag: document.getElementById("defeatedTag"),
+    lifeManaSummary: document.getElementById("lifeManaSummary"),
+    rollBtn: document.getElementById("rollBtn"),
+    rollModal: document.getElementById("rollModal"),
+    rollBanner: document.getElementById("rollBanner"),
+    dieGrid: document.getElementById("dieGrid"),
+    flipCoinBtn: document.getElementById("flipCoinBtn"),
+    rollCloseBtn: document.getElementById("rollCloseBtn"),
+    cmdrList: document.getElementById("cmdrList"),
+    cmdrEmptyHint: document.getElementById("cmdrEmptyHint"),
+    cmdrBody: document.getElementById("cmdrBody"),
+    cmdrToggleBtn: document.getElementById("cmdrToggleBtn"),
+    manaGrid: document.getElementById("manaGrid"),
+    manaBody: document.getElementById("manaBody"),
+    manaToggleBtn: document.getElementById("manaToggleBtn"),
+    clearMana: document.getElementById("clearMana"),
+    creatureList: document.getElementById("creatureList"),
+    creatureEmptyHint: document.getElementById("creatureEmptyHint"),
+    tokenList: document.getElementById("tokenList"),
+    tokenEmptyHint: document.getElementById("tokenEmptyHint"),
+    quickChips: document.getElementById("quickChips"),
+    newTokenName: document.getElementById("newTokenName"),
+    addTokenBtn: document.getElementById("addTokenBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+    newGameBtn: document.getElementById("newGameBtn"),
+    tableList: document.getElementById("tableList"),
+    tableCount: document.getElementById("tableCount"),
+    tableEmptyHint: document.getElementById("tableEmptyHint"),
+    youBanner: document.getElementById("youBanner"),
+    youDot: document.getElementById("youDot"),
+    youIcon: document.getElementById("youIcon"),
+    youNameLabel: document.getElementById("youNameLabel"),
+    renameBtn: document.getElementById("renameBtn"),
+    tabletopToggleBtn: document.getElementById("tabletopToggleBtn"),
+    tabletopExitBtn: document.getElementById("tabletopExitBtn"),
+    tabletopView: document.getElementById("tabletopView"),
+    ttSelf: document.getElementById("ttSelf"),
+    ttLifeMinusTap: document.getElementById("ttLifeMinusTap"),
+    ttLifePlusTap: document.getElementById("ttLifePlusTap"),
+    ttLifeValue: document.getElementById("ttLifeValue"),
+    ttSelfIcon: document.getElementById("ttSelfIcon"),
+    ttSelfName: document.getElementById("ttSelfName"),
+    ttSelfCreatures: document.getElementById("ttSelfCreatures"),
+    ttOpponents: document.getElementById("ttOpponents"),
+    ttSnapMarkers: document.getElementById("ttSnapMarkers"),
+    confirmModal: document.getElementById("confirmModal"),
+    confirmText: document.getElementById("confirmText"),
+    confirmCancel: document.getElementById("confirmCancel"),
+    confirmOk: document.getElementById("confirmOk"),
+    renameModal: document.getElementById("renameModal"),
+    renameInput: document.getElementById("renameInput"),
+    renameCancel: document.getElementById("renameCancel"),
+    renameSave: document.getElementById("renameSave"),
+    setupShareBtn: document.getElementById("setupShareBtn"),
+    tableShareBtn: document.getElementById("tableShareBtn"),
+    shareModal: document.getElementById("shareModal"),
+    shareQrFrame: document.getElementById("shareQrFrame"),
+    shareQr: document.getElementById("shareQr"),
+    shareUrl: document.getElementById("shareUrl"),
+    shareAlt: document.getElementById("shareAlt"),
+    shareSms: document.getElementById("shareSms"),
+    shareClose: document.getElementById("shareClose")
+  };
+
+  function lightenColor(hex, amount){
+    var c = (hex || "").replace("#", "");
+    if(c.length === 3){ c = c.split("").map(function(ch){ return ch + ch; }).join(""); }
+    if(c.length !== 6) return hex;
+    var r = parseInt(c.substring(0, 2), 16);
+    var g = parseInt(c.substring(2, 4), 16);
+    var b = parseInt(c.substring(4, 6), 16);
+    if(isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+    r = Math.round(r + (255 - r) * amount);
+    g = Math.round(g + (255 - g) * amount);
+    b = Math.round(b + (255 - b) * amount);
+    return "#" + [r, g, b].map(function(v){ return v.toString(16).padStart(2, "0"); }).join("");
+  }
+
+  function applyAccent(color){
+    document.documentElement.style.setProperty("--accent", color);
+    document.documentElement.style.setProperty("--accent-light", lightenColor(color, 0.45));
+  }
+
+  // ---------- Networking ----------
+  function pushSnapshot(){
+    if(!state || !state.started || !PLAYER_ID) return;
+    var snapshot = {
+      name: state.name || "Player",
+      accent: state.accent,
+      icon: state.icon,
+      life: state.life,
+      startingLife: state.startingLife,
+      mana: state.mana,
+      tokens: state.tokens,
+      creatures: state.creatures,
+      rollStatus: rollStatus
+    };
+    fetch("/api/players/" + encodeURIComponent(PLAYER_ID), {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(snapshot)
+    }).catch(function(){ /* host unreachable right now — keep playing locally */ });
+  }
+
+  function leaveTable(){
+    if(!PLAYER_ID) return;
+    fetch("/api/players/" + encodeURIComponent(PLAYER_ID), {method:"DELETE"}).catch(function(){});
+  }
+
+  function fetchTable(){
+    fetch("/api/players").then(function(r){ return r.json(); }).then(function(players){
+      latestPlayers = players || {};
+      renderTable();
+      renderCommander();
+      renderTabletopOpponents();
+    }).catch(function(){ /* keep showing last known table */ });
+  }
+
+  function startPolling(){
+    stopPolling();
+    fetchTable();
+    pollTimer = setInterval(function(){
+      pushSnapshot();
+      fetchTable();
+    }, POLL_MS);
+  }
+
+  function stopPolling(){
+    if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  // ---------- Setup screen ----------
+  var selectedLifePreset = "40";
+  var selectedIcon = null;
+  var setupTakenIcons = {};
+
+  function fetchSetupTakenIcons(cb){
+    fetch("/api/players").then(function(r){ return r.json(); }).then(function(players){
+      var taken = {};
+      Object.keys(players || {}).forEach(function(id){
+        var p = players[id];
+        if(p && p.icon) taken[p.icon] = true;
+      });
+      setupTakenIcons = taken;
+    }).catch(function(){ /* host unreachable — fall back to whatever we last knew */ })
+      .then(function(){ if(cb) cb(); });
+  }
+
+  function updateIconPickerBtn(){
+    if(selectedIcon){
+      el.iconPickerSymbol.textContent = iconSymbol(selectedIcon);
+      var found = ICONS.filter(function(i){ return i.key === selectedIcon; })[0];
+      el.iconPickerText.textContent = "Change Icon (" + (found ? found.label : "") + ")";
+      el.iconPickerBtn.classList.add("chosen");
+    }else{
+      el.iconPickerSymbol.textContent = "";
+      el.iconPickerText.textContent = "Choose Icon";
+      el.iconPickerBtn.classList.remove("chosen");
+    }
+    el.iconPickerBtn.classList.toggle("invalid", el.iconPickerBtn.dataset.touched === "1" && !selectedIcon);
+  }
+
+  function renderIconGrid(){
+    el.iconGrid.innerHTML = "";
+    ICONS.forEach(function(i){
+      var taken = !!setupTakenIcons[i.key] && i.key !== selectedIcon;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "icon-choice-btn" + (i.key === selectedIcon ? " selected" : "") + (taken ? " taken" : "");
+      btn.disabled = taken;
+      btn.innerHTML = '<span>' + i.sym + '</span><span class="label"></span>';
+      btn.querySelector(".label").textContent = taken ? "Taken" : i.label;
+      btn.addEventListener("click", function(){
+        selectedIcon = i.key;
+        updateIconPickerBtn();
+        updateStartEnabled();
+        el.iconModal.classList.add("hidden");
+      });
+      el.iconGrid.appendChild(btn);
+    });
+  }
+
+  el.iconPickerBtn.addEventListener("click", function(){
+    el.iconPickerBtn.dataset.touched = "1";
+    fetchSetupTakenIcons(function(){
+      renderIconGrid();
+      el.iconModal.classList.remove("hidden");
+    });
+    updateIconPickerBtn();
+  });
+  el.iconModalClose.addEventListener("click", function(){
+    el.iconModal.classList.add("hidden");
+  });
+
+  el.lifePresets.addEventListener("click", function(e){
+    var btn = e.target.closest(".preset-btn");
+    if(!btn) return;
+    Array.prototype.forEach.call(el.lifePresets.querySelectorAll(".preset-btn"), function(b){
+      b.classList.remove("selected");
+    });
+    btn.classList.add("selected");
+    selectedLifePreset = btn.getAttribute("data-life");
+    if(selectedLifePreset === "custom"){
+      el.customLifeWrap.classList.remove("hidden");
+      el.customLife.focus();
+    }else{
+      el.customLifeWrap.classList.add("hidden");
+    }
+  });
+
+  el.swatches.addEventListener("click", function(e){
+    var sw = e.target.closest(".swatch");
+    if(!sw) return;
+    Array.prototype.forEach.call(el.swatches.querySelectorAll(".swatch"), function(s){
+      s.classList.remove("selected");
+    });
+    sw.classList.add("selected");
+    applyAccent(sw.getAttribute("data-color"));
+  });
+
+  function updateStartEnabled(){
+    var hasName = !!(el.playerName.value || "").trim();
+    el.startBtn.disabled = !hasName || !selectedIcon;
+    el.playerName.classList.toggle("invalid", el.playerName.dataset.touched === "1" && !hasName);
+  }
+  el.playerName.addEventListener("input", function(){
+    el.playerName.dataset.touched = "1";
+    updateStartEnabled();
+  });
+
+  el.startBtn.addEventListener("click", function(){
+    var name = (el.playerName.value || "").trim();
+    if(!name){
+      el.playerName.dataset.touched = "1";
+      updateStartEnabled();
+      el.playerName.focus();
+      return;
+    }
+    if(!selectedIcon){
+      el.iconPickerBtn.dataset.touched = "1";
+      updateIconPickerBtn();
+      fetchSetupTakenIcons(function(){
+        renderIconGrid();
+        el.iconModal.classList.remove("hidden");
+      });
+      return;
+    }
+    var life;
+    if(selectedLifePreset === "custom"){
+      life = parseInt(el.customLife.value, 10);
+      if(isNaN(life)){ el.customLife.focus(); return; }
+    }else{
+      life = parseInt(selectedLifePreset, 10);
+    }
+    var accentEl = el.swatches.querySelector(".swatch.selected");
+    var accent = accentEl ? accentEl.getAttribute("data-color") : "#c9a34e";
+    try{ localStorage.setItem(LAST_NAME_KEY, name); }catch(e){}
+
+    state = defaultState();
+    state.started = true;
+    state.name = name;
+    state.startingLife = life;
+    state.life = life;
+    state.accent = accent;
+    state.icon = selectedIcon;
+    saveState();
+    renderAll();
+    showMain();
+    startPolling();
+  });
+
+  function showSetup(){
+    el.setup.classList.remove("hidden");
+    el.main.classList.add("hidden");
+    var lastName = "";
+    try{ lastName = localStorage.getItem(LAST_NAME_KEY) || ""; }catch(e){}
+    el.playerName.value = lastName;
+    el.playerName.dataset.touched = "0";
+    selectedIcon = null;
+    el.iconPickerBtn.dataset.touched = "0";
+    updateIconPickerBtn();
+    fetchSetupTakenIcons(function(){});
+    updateStartEnabled();
+  }
+  function showMain(){
+    el.setup.classList.add("hidden");
+    el.main.classList.remove("hidden");
+  }
+
+  // ---------- Undo (single-step, covers life + mana) ----------
+  var lastSnapshot = null;
+
+  function captureUndoPoint(){
+    lastSnapshot = {life: state.life, mana: Object.assign({}, state.mana)};
+    updateUndoButton();
+  }
+  function updateUndoButton(){
+    el.undoBtn.disabled = !lastSnapshot;
+  }
+  el.undoBtn.addEventListener("click", function(){
+    if(!lastSnapshot) return;
+    state.life = lastSnapshot.life;
+    state.mana = lastSnapshot.mana;
+    lastSnapshot = null;
+    updateUndoButton();
+    saveState();
+    renderLife();
+    renderMana();
+  });
+
+  // ---------- Life ----------
+  var flashTimer = null;
+  function changeLife(delta){
+    captureUndoPoint();
+    state.life += delta;
+    saveState();
+    renderLife();
+    var cls = delta > 0 ? "flash-up" : "flash-down";
+    el.lifeValue.classList.remove("flash-up","flash-down");
+    void el.lifeValue.offsetWidth; // reflow to restart animation
+    el.lifeValue.classList.add(cls);
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(function(){
+      el.lifeValue.classList.remove("flash-up","flash-down");
+    }, 350);
+  }
+
+  function renderLife(){
+    el.lifeValue.textContent = state.life;
+    el.ttLifeValue.textContent = state.life;
+    renderDefeatedState();
+  }
+
+  el.lifeMinusTap.addEventListener("click", function(){ changeLife(-1); });
+  el.lifePlusTap.addEventListener("click", function(){ changeLife(1); });
+  el.ttLifeMinusTap.addEventListener("click", function(){ changeLife(-1); });
+  el.ttLifePlusTap.addEventListener("click", function(){ changeLife(1); });
+  el.minus5.addEventListener("click", function(){ changeLife(-5); });
+  el.minus1.addEventListener("click", function(){ changeLife(-1); });
+  el.plus1.addEventListener("click", function(){ changeLife(1); });
+  el.plus5.addEventListener("click", function(){ changeLife(5); });
+
+  // ---------- Mana ----------
+  function renderMana(){
+    el.manaGrid.innerHTML = "";
+    MANA_COLORS.forEach(function(c){
+      var pip = document.createElement("div");
+      pip.className = "mana-pip";
+      pip.style.background = "radial-gradient(circle at 35% 30%, var(" + c.var + "-light), var(" + c.var + ") 75%)";
+      pip.style.color = "var(" + c.var + "-text)";
+      pip.innerHTML =
+        '<div class="sym">' + c.label + '</div>' +
+        '<div class="cnt">' + state.mana[c.key] + '</div>' +
+        '<div class="steppers">' +
+          '<button data-act="minus" aria-label="decrease">−</button>' +
+          '<button data-act="plus" aria-label="increase">+</button>' +
+        '</div>';
+      pip.querySelector('[data-act="minus"]').addEventListener("click", function(){
+        captureUndoPoint();
+        state.mana[c.key] = Math.max(0, state.mana[c.key] - 1);
+        saveState();
+        renderMana();
+      });
+      pip.querySelector('[data-act="plus"]').addEventListener("click", function(){
+        captureUndoPoint();
+        state.mana[c.key] = state.mana[c.key] + 1;
+        saveState();
+        renderMana();
+      });
+      el.manaGrid.appendChild(pip);
+    });
+    renderLifeManaSummary();
+  }
+
+  function renderLifeManaSummary(){
+    el.lifeManaSummary.innerHTML = "";
+    MANA_COLORS.forEach(function(c){
+      var n = state.mana[c.key] || 0;
+      if(n === 0) return; // only show colors you're actually holding
+      var item = document.createElement("span");
+      item.className = "lm-item";
+      item.style.color = "var(" + c.var + "-light)";
+      item.textContent = n;
+      el.lifeManaSummary.appendChild(item);
+    });
+  }
+
+  el.clearMana.addEventListener("click", function(){
+    captureUndoPoint();
+    MANA_COLORS.forEach(function(c){ state.mana[c.key] = 0; });
+    saveState();
+    renderMana();
+  });
+
+  // ---------- Creature Counters (independent power/toughness deltas, no name, broadcast) ----------
+  // In-memory only -- which chips are showing their expanded PWR/TGH controls. Never
+  // persisted or broadcast; it's pure local UI state and resets on reload.
+  var expandedCreatureIds = {};
+
+  function formatSigned(n){
+    return n > 0 ? ("+" + n) : String(n); // 0 and negative already print their own sign (or none)
+  }
+
+  function addCreature(){
+    state.creatures.push({id:creatureUid(), power:1, toughness:1});
+    saveState();
+    renderCreatures();
+  }
+
+  // Fills a "<span>P</span>/<span>T</span>"-shaped element's two spans with signed
+  // power/toughness text, coloring each independently if it's gone negative. Shared by
+  // the collapsed chip display, the expanded axis rows, and the read-only Tabletop chips.
+  function fillPTSpans(pSpan, tSpan, power, toughness){
+    pSpan.textContent = formatSigned(power);
+    pSpan.classList.toggle("pt-neg", power < 0);
+    tSpan.textContent = formatSigned(toughness);
+    tSpan.classList.toggle("pt-neg", toughness < 0);
+  }
+
+  function buildCreatureChip(c){
+    var expanded = !!expandedCreatureIds[c.id];
+    var chip = document.createElement("div");
+    chip.className = "creature-chip" + (expanded ? " expanded" : "");
+    chip.innerHTML =
+      '<button class="del" data-act="del" aria-label="remove creature">✕</button>' +
+      '<button class="cnt" data-act="toggle" aria-label="tap to adjust power and toughness separately">' +
+        '<span class="pt-p"></span><span>/</span><span class="pt-t"></span>' +
+      '</button>' +
+      '<div class="steppers sym-steppers">' +
+        '<button data-act="minus" aria-label="decrease power and toughness">−</button>' +
+        '<button data-act="plus" aria-label="increase power and toughness">+</button>' +
+      '</div>' +
+      '<div class="pt-axes">' +
+        '<div class="pt-axis">' +
+          '<button data-act="pminus" aria-label="decrease power">−</button>' +
+          '<span class="pt-axis-label">PWR<span class="pt-val pt-axis-p"></span></span>' +
+          '<button data-act="pplus" aria-label="increase power">+</button>' +
+        '</div>' +
+        '<div class="pt-axis">' +
+          '<button data-act="tminus" aria-label="decrease toughness">−</button>' +
+          '<span class="pt-axis-label">TGH<span class="pt-val pt-axis-t"></span></span>' +
+          '<button data-act="tplus" aria-label="increase toughness">+</button>' +
+        '</div>' +
+      '</div>';
+
+    fillPTSpans(chip.querySelector(".pt-p"), chip.querySelector(".pt-t"), c.power, c.toughness);
+    fillPTSpans(chip.querySelector(".pt-axis-p"), chip.querySelector(".pt-axis-t"), c.power, c.toughness);
+
+    chip.querySelector('[data-act="toggle"]').addEventListener("click", function(){
+      if(expandedCreatureIds[c.id]) delete expandedCreatureIds[c.id];
+      else expandedCreatureIds[c.id] = true;
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="minus"]').addEventListener("click", function(){
+      c.power -= 1; c.toughness -= 1;
+      saveState();
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="plus"]').addEventListener("click", function(){
+      c.power += 1; c.toughness += 1;
+      saveState();
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="pminus"]').addEventListener("click", function(){
+      c.power -= 1;
+      saveState();
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="pplus"]').addEventListener("click", function(){
+      c.power += 1;
+      saveState();
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="tminus"]').addEventListener("click", function(){
+      c.toughness -= 1;
+      saveState();
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="tplus"]').addEventListener("click", function(){
+      c.toughness += 1;
+      saveState();
+      renderCreatures();
+    });
+    chip.querySelector('[data-act="del"]').addEventListener("click", function(){
+      delete expandedCreatureIds[c.id];
+      state.creatures = state.creatures.filter(function(x){ return x.id !== c.id; });
+      saveState();
+      renderCreatures();
+    });
+    return chip;
+  }
+
+  function buildCreatureAddChip(){
+    var addChip = document.createElement("div");
+    addChip.className = "creature-chip add";
+    addChip.innerHTML = '<button aria-label="add creature counter">+</button>';
+    addChip.querySelector("button").addEventListener("click", addCreature);
+    return addChip;
+  }
+
+  // Renders the same creature-chip list into any container — used for both the
+  // Creature Counters section on the standard screen and the self box in Tabletop View.
+  function renderCreatureListInto(container, emptyHintEl){
+    container.innerHTML = "";
+    if(emptyHintEl) emptyHintEl.classList.toggle("hidden", state.creatures.length > 0);
+    state.creatures.forEach(function(c){ container.appendChild(buildCreatureChip(c)); });
+    container.appendChild(buildCreatureAddChip());
+  }
+
+  function renderCreatures(){
+    renderCreatureListInto(el.creatureList, el.creatureEmptyHint);
+    renderCreatureListInto(el.ttSelfCreatures, null);
+  }
+
+  // ---------- Tokens ----------
+  function addToken(name){
+    name = (name || "").trim();
+    if(!name) return;
+    var existing = state.tokens.find(function(t){ return t.name.toLowerCase() === name.toLowerCase(); });
+    if(existing){
+      existing.count += 1;
+    }else{
+      state.tokens.push({id:tokenUid(), name:name, count:1});
+    }
+    saveState();
+    renderTokens();
+  }
+
+  function renderTokens(){
+    el.tokenList.innerHTML = "";
+    if(state.tokens.length === 0){
+      el.tokenEmptyHint.classList.remove("hidden");
+    }else{
+      el.tokenEmptyHint.classList.add("hidden");
+    }
+    state.tokens.forEach(function(t){
+      var row = document.createElement("div");
+      row.className = "token-row";
+      var dotColor = tokenColor(t.name) || "var(--accent)";
+      row.innerHTML =
+        '<span class="dot" style="background:' + dotColor + '; color:' + dotColor + ';"></span>' +
+        '<span class="name"></span>' +
+        '<button data-act="minus" aria-label="decrease">−</button>' +
+        '<span class="cnt"></span>' +
+        '<button data-act="plus" aria-label="increase">+</button>' +
+        '<button class="del" data-act="del" aria-label="remove">✕</button>';
+      row.querySelector(".name").textContent = t.name;
+      row.querySelector(".cnt").textContent = t.count;
+      row.querySelector('[data-act="minus"]').addEventListener("click", function(){
+        t.count = Math.max(0, t.count - 1);
+        saveState();
+        renderTokens();
+      });
+      row.querySelector('[data-act="plus"]').addEventListener("click", function(){
+        t.count += 1;
+        saveState();
+        renderTokens();
+      });
+      row.querySelector('[data-act="del"]').addEventListener("click", function(){
+        state.tokens = state.tokens.filter(function(x){ return x.id !== t.id; });
+        saveState();
+        renderTokens();
+      });
+      el.tokenList.appendChild(row);
+    });
+    renderDefeatedState();
+  }
+
+  function renderChips(){
+    el.quickChips.innerHTML = "";
+    QUICK_TOKENS.forEach(function(name){
+      var chip = document.createElement("button");
+      chip.className = "chip";
+      chip.textContent = "+ " + name;
+      chip.addEventListener("click", function(){ addToken(name); });
+      el.quickChips.appendChild(chip);
+    });
+  }
+
+  el.addTokenBtn.addEventListener("click", function(){
+    addToken(el.newTokenName.value);
+    el.newTokenName.value = "";
+    el.newTokenName.blur();
+  });
+  el.newTokenName.addEventListener("keydown", function(e){
+    if(e.key === "Enter"){
+      addToken(el.newTokenName.value);
+      el.newTokenName.value = "";
+      el.newTokenName.blur();
+    }
+  });
+
+  // ---------- You banner / rename ----------
+  function renderYouBanner(){
+    el.youNameLabel.textContent = state.name || "Player";
+    el.youDot.style.background = state.accent;
+    el.youDot.style.color = state.accent;
+    el.youIcon.textContent = iconSymbol(state.icon);
+    el.ttSelfName.textContent = state.name || "Player";
+    el.ttSelfIcon.textContent = iconSymbol(state.icon);
+  }
+
+  el.renameBtn.addEventListener("click", function(){
+    el.renameInput.value = state.name || "";
+    el.renameModal.classList.remove("hidden");
+    el.renameInput.focus();
+    el.renameInput.select();
+  });
+  el.renameCancel.addEventListener("click", function(){
+    el.renameModal.classList.add("hidden");
+  });
+  el.renameSave.addEventListener("click", function(){
+    var name = (el.renameInput.value || "").trim();
+    if(!name){ el.renameInput.focus(); return; }
+    state.name = name;
+    try{ localStorage.setItem(LAST_NAME_KEY, name); }catch(e){}
+    saveState();
+    renderYouBanner();
+    el.renameModal.classList.add("hidden");
+  });
+  el.renameInput.addEventListener("keydown", function(e){
+    if(e.key === "Enter") el.renameSave.click();
+  });
+
+  // ---------- Defeat detection (life <= 0, poison >= 10, or 21+ commander damage from one opponent) ----------
+  function findPoisonCount(tokens){
+    if(!tokens) return 0;
+    var t = tokens.find(function(x){ return (x.name || "").trim().toLowerCase() === "poison"; });
+    return t ? t.count : 0;
+  }
+  function isDefeated(life, tokens, commanderDamage){
+    if(typeof life === "number" && life <= 0) return true;
+    if(findPoisonCount(tokens) >= 10) return true;
+    if(commanderDamage){
+      var lethal = Object.keys(commanderDamage).some(function(id){
+        return (commanderDamage[id].amount || 0) >= 21;
+      });
+      if(lethal) return true;
+    }
+    return false;
+  }
+  function renderDefeatedState(){
+    var defeated = isDefeated(state.life, state.tokens, state.commanderDamage);
+    el.lifeCard.classList.toggle("defeated", defeated);
+    el.defeatedTag.classList.toggle("show", defeated);
+    el.ttSelf.classList.toggle("defeated", defeated);
+  }
+
+  // ---------- The Table (other players) ----------
+  function manaSummary(mana){
+    if(!mana) return "No floating mana";
+    var parts = [];
+    MANA_COLORS.forEach(function(c){
+      var n = mana[c.key] || 0;
+      if(n > 0) parts.push(c.label + n);
+    });
+    return parts.length ? parts.join(" · ") : "No floating mana";
+  }
+
+  function tokenSummary(tokens){
+    if(!tokens || !tokens.length) return "No tokens";
+    var parts = tokens.filter(function(t){ return t.count > 0; }).map(function(t){ return t.name + " ×" + t.count; });
+    return parts.length ? parts.join(" · ") : "No tokens";
+  }
+
+  function creatureSummary(creatures){
+    if(!creatures || !creatures.length) return "No creature counters";
+    var parts = creatures.map(function(c){
+      var pt = creaturePT(c);
+      return formatSigned(pt.power) + "/" + formatSigned(pt.toughness);
+    });
+    return parts.length ? parts.join(" · ") : "No creature counters";
+  }
+
+  function rollStatusText(rs, name, forSelf){
+    if(!rs) return "";
+    var who = forSelf ? "" : (name + " ");
+    if(rs.phase === "rolling"){
+      return forSelf
+        ? ("Rolling a " + rs.label + "…")
+        : (who + "is rolling a " + rs.label + "…");
+    }
+    var outcome = rs.label === "Coin" ? ("flipped " + rs.result) : ("rolled " + rs.result + " on a " + rs.label);
+    return forSelf ? ("You " + outcome) : (who + outcome);
+  }
+
+  function renderTable(){
+    var nowSec = Date.now() / 1000;
+    var others = Object.keys(latestPlayers)
+      .filter(function(id){ return id !== PLAYER_ID; })
+      .map(function(id){ return Object.assign({id:id}, latestPlayers[id]); })
+      .sort(function(a, b){ return (a.name || "").localeCompare(b.name || ""); });
+
+    el.tableList.innerHTML = "";
+    el.tableCount.textContent = others.length ? "(" + others.length + " other" + (others.length === 1 ? "" : "s") + ")" : "";
+    el.tableEmptyHint.classList.toggle("hidden", others.length > 0);
+
+    others.forEach(function(p){
+      var away = (nowSec - (p.lastSeen || 0)) > AWAY_SECONDS;
+      var defeated = isDefeated(p.life, p.tokens, null);
+      var card = document.createElement("div");
+      card.className = "table-card" + (away ? " away" : "") + (defeated ? " defeated" : "") + (expandedIds[p.id] ? " open" : "");
+      card.innerHTML =
+        '<div class="table-card-top">' +
+          '<span class="dot" style="background:' + (p.accent || "#c9a34e") + '; color:' + (p.accent || "#c9a34e") + ';"></span>' +
+          '<span class="t-icon"></span>' +
+          '<span class="t-name"></span>' +
+          (defeated ? '<span class="t-defeated-tag">☠ Out</span>' : '') +
+          (away ? '<span class="t-away-tag">away</span>' : '') +
+          '<span class="t-life"></span>' +
+          '<button class="t-toggle" aria-label="toggle details">▾</button>' +
+        '</div>' +
+        (p.rollStatus ? '<div class="t-roll-status"></div>' : '') +
+        '<div class="table-card-detail' + (expandedIds[p.id] ? '' : ' hidden') + '">' +
+          '<div class="t-mana"></div>' +
+          '<div class="t-tokens"></div>' +
+          '<div class="t-creatures"></div>' +
+        '</div>';
+      card.querySelector(".t-name").textContent = p.name || "Player";
+      card.querySelector(".t-icon").textContent = iconSymbol(p.icon);
+      card.querySelector(".t-life").textContent = (typeof p.life === "number") ? p.life : "–";
+      card.querySelector(".t-mana").textContent = "Mana: " + manaSummary(p.mana);
+      card.querySelector(".t-tokens").textContent = "Tokens: " + tokenSummary(p.tokens);
+      card.querySelector(".t-creatures").textContent = "Creature counters: " + creatureSummary(p.creatures);
+      if(p.rollStatus){
+        card.querySelector(".t-roll-status").textContent = rollStatusText(p.rollStatus, p.name || "Player", false);
+      }
+      card.querySelector(".table-card-top").addEventListener("click", function(){
+        expandedIds[p.id] = !expandedIds[p.id];
+        renderTable();
+      });
+      el.tableList.appendChild(card);
+    });
+  }
+
+  // ---------- Tabletop View (condensed, spatial, read-only-for-others layout) ----------
+  // Seating layout is purely local to this device — it's your own read of where
+  // people are physically sitting relative to you, never synced to the table.
+  function loadTabletopMode(){
+    try{ return localStorage.getItem(TABLETOP_MODE_KEY) === "1"; }catch(e){ return false; }
+  }
+  function saveTabletopMode(){
+    try{ localStorage.setItem(TABLETOP_MODE_KEY, tabletopMode ? "1" : "0"); }catch(e){}
+  }
+  function applyTabletopMode(){
+    el.tabletopView.classList.toggle("hidden", !tabletopMode);
+    if(tabletopMode) renderTabletopOpponents();
+  }
+  function enterTabletopMode(){
+    tabletopMode = true;
+    saveTabletopMode();
+    applyTabletopMode();
+  }
+  function exitTabletopMode(){
+    tabletopMode = false;
+    saveTabletopMode();
+    applyTabletopMode();
+  }
+  el.tabletopToggleBtn.addEventListener("click", enterTabletopMode);
+  el.tabletopExitBtn.addEventListener("click", exitTabletopMode);
+
+  function loadTabletopPositions(){
+    try{
+      var raw = localStorage.getItem(TT_POSITIONS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+  function saveTabletopPositions(){
+    try{ localStorage.setItem(TT_POSITIONS_KEY, JSON.stringify(tabletopPositions)); }catch(e){}
+  }
+
+  // Assigns each currently-seated opponent a slot: keep their remembered slot if it's
+  // still free, otherwise hand out the next open slot in TT_FILL_ORDER (and remember it).
+  function resolveTabletopSlots(others){
+    var used = {};
+    var result = {};
+    others.forEach(function(p){
+      var saved = tabletopPositions[p.id];
+      if(typeof saved === "number" && TT_SLOTS[saved] && !used[saved]){
+        result[p.id] = saved;
+        used[saved] = true;
+      }
+    });
+    var changed = false;
+    others.forEach(function(p){
+      if(result[p.id] !== undefined) return;
+      var free = TT_FILL_ORDER.filter(function(s){ return !used[s]; });
+      var slot = free.length ? free[0] : TT_FILL_ORDER[TT_FILL_ORDER.length - 1];
+      result[p.id] = slot;
+      used[slot] = true;
+      if(tabletopPositions[p.id] !== slot){ tabletopPositions[p.id] = slot; changed = true; }
+    });
+    if(changed) saveTabletopPositions();
+    return result;
+  }
+
+  function nearestTabletopSlot(top, left){
+    var best = 0, bestDist = Infinity;
+    TT_SLOTS.forEach(function(s, i){
+      var dt = s.top - top, dl = s.left - left;
+      var dist = dt * dt + dl * dl;
+      if(dist < bestDist){ bestDist = dist; best = i; }
+    });
+    return best;
+  }
+
+  // Shows a dot/dashed-box marker at every snap slot while a drag is in progress, and
+  // highlights whichever one is currently nearest. All markers disappear on drop.
+  function showSnapMarkers(){
+    el.ttSnapMarkers.innerHTML = "";
+    TT_SLOTS.forEach(function(s, i){
+      var m = document.createElement("div");
+      m.className = "tt-snap-marker";
+      m.style.top = s.top + "%";
+      m.style.left = s.left + "%";
+      m.dataset.slot = i;
+      el.ttSnapMarkers.appendChild(m);
+    });
+    el.ttSnapMarkers.classList.remove("hidden");
+  }
+  function updateSnapMarkerHighlight(nearestIdx){
+    var markers = el.ttSnapMarkers.children;
+    for(var i = 0; i < markers.length; i++){
+      markers[i].classList.toggle("nearest", i === nearestIdx);
+    }
+  }
+  function hideSnapMarkers(){
+    el.ttSnapMarkers.classList.add("hidden");
+    el.ttSnapMarkers.innerHTML = "";
+  }
+
+  function attachTabletopDrag(card, playerId){
+    var pointerId = null;
+    card.addEventListener("pointerdown", function(e){
+      e.preventDefault();
+      pointerId = e.pointerId;
+      ttDraggingId = playerId;
+      card.classList.add("dragging");
+      showSnapMarkers();
+      try{ card.setPointerCapture(pointerId); }catch(err){}
+    });
+    card.addEventListener("pointermove", function(e){
+      if(pointerId === null || e.pointerId !== pointerId) return;
+      var rect = el.ttOpponents.getBoundingClientRect();
+      if(!rect.width || !rect.height) return;
+      var leftPct = Math.max(8, Math.min(92, ((e.clientX - rect.left) / rect.width) * 100));
+      var topPct = Math.max(6, Math.min(94, ((e.clientY - rect.top) / rect.height) * 100));
+      card.style.left = leftPct + "%";
+      card.style.top = topPct + "%";
+      card._ttPending = {top: topPct, left: leftPct};
+      updateSnapMarkerHighlight(nearestTabletopSlot(topPct, leftPct));
+    });
+    function endDrag(e){
+      if(pointerId === null || e.pointerId !== pointerId) return;
+      pointerId = null;
+      card.classList.remove("dragging");
+      var pending = card._ttPending;
+      if(pending){
+        tabletopPositions[playerId] = nearestTabletopSlot(pending.top, pending.left);
+        saveTabletopPositions();
+      }
+      ttDraggingId = null;
+      hideSnapMarkers();
+      renderTabletopOpponents();
+    }
+    card.addEventListener("pointerup", endDrag);
+    card.addEventListener("pointercancel", endDrag);
+  }
+
+  function renderTabletopOpponents(){
+    if(ttDraggingId) return; // don't rebuild out from under an in-progress drag
+    var nowSec = Date.now() / 1000;
+    var others = Object.keys(latestPlayers)
+      .filter(function(id){ return id !== PLAYER_ID; })
+      .map(function(id){ return Object.assign({id:id}, latestPlayers[id]); });
+
+    var slots = resolveTabletopSlots(others);
+
+    el.ttOpponents.innerHTML = "";
+    others.forEach(function(p){
+      var away = (nowSec - (p.lastSeen || 0)) > AWAY_SECONDS;
+      var defeated = isDefeated(p.life, p.tokens, null);
+      var pos = TT_SLOTS[slots[p.id]];
+      var card = document.createElement("div");
+      card.className = "tt-player" + (away ? " away" : "") + (defeated ? " defeated" : "");
+      card.style.top = pos.top + "%";
+      card.style.left = pos.left + "%";
+      card.innerHTML =
+        '<div class="tt-p-row">' +
+          '<span class="dot" style="background:' + (p.accent || "#c9a34e") + '; color:' + (p.accent || "#c9a34e") + ';"></span>' +
+          '<span class="tt-p-icon"></span>' +
+          '<span class="tt-p-name"></span>' +
+        '</div>' +
+        '<div class="tt-p-life"></div>' +
+        '<div class="tt-p-creatures"></div>' +
+        '<div class="tt-defeated-stamp" aria-hidden="true">' +
+          '<span class="tt-stamp-icon">🪦</span>' +
+          '<span class="tt-stamp-text">Out</span>' +
+        '</div>';
+      card.querySelector(".tt-p-icon").textContent = iconSymbol(p.icon);
+      card.querySelector(".tt-p-name").textContent = p.name || "Player";
+      card.querySelector(".tt-p-life").textContent = (typeof p.life === "number") ? p.life : "–";
+      var creaturesEl = card.querySelector(".tt-p-creatures");
+      (p.creatures || []).forEach(function(c){
+        var pt = creaturePT(c);
+        var chip = document.createElement("span");
+        chip.className = "tt-p-chip";
+        chip.innerHTML = '<span class="pt-p"></span><span>/</span><span class="pt-t"></span>';
+        fillPTSpans(chip.querySelector(".pt-p"), chip.querySelector(".pt-t"), pt.power, pt.toughness);
+        creaturesEl.appendChild(chip);
+      });
+      attachTabletopDrag(card, p.id);
+      el.ttOpponents.appendChild(card);
+    });
+  }
+
+  // ---------- Commander Damage (damage taken by you, per opponent) ----------
+  function changeCommanderDamage(id, delta, name, accent){
+    var current = (state.commanderDamage[id] && state.commanderDamage[id].amount) || 0;
+    var next = Math.max(0, current + delta);
+    state.commanderDamage[id] = {name: name, accent: accent, amount: next};
+    saveState();
+    renderCommander();
+    renderDefeatedState();
+  }
+
+  function renderCommander(){
+    var ids = {};
+    Object.keys(latestPlayers).forEach(function(id){ if(id !== PLAYER_ID) ids[id] = true; });
+    Object.keys(state.commanderDamage).forEach(function(id){ ids[id] = true; });
+
+    var rows = Object.keys(ids).map(function(id){
+      var live = latestPlayers[id];
+      var stored = state.commanderDamage[id];
+      var name = (live && live.name) || (stored && stored.name) || "Player";
+      var accent = (live && live.accent) || (stored && stored.accent) || "#c9a34e";
+      var amount = (stored && typeof stored.amount === "number") ? stored.amount : 0;
+      return {id:id, name:name, accent:accent, amount:amount};
+    }).sort(function(a, b){ return a.name.localeCompare(b.name); });
+
+    el.cmdrList.innerHTML = "";
+    el.cmdrEmptyHint.classList.toggle("hidden", rows.length > 0);
+
+    rows.forEach(function(r){
+      var lethal = r.amount >= 21;
+      var row = document.createElement("div");
+      row.className = "cmdr-row" + (lethal ? " lethal" : "");
+      row.innerHTML =
+        '<span class="dot" style="background:' + r.accent + '; color:' + r.accent + ';"></span>' +
+        '<span class="name"></span>' +
+        (lethal ? '<span class="lethal-tag">Lethal</span>' : '') +
+        '<button data-act="minus" aria-label="decrease">−</button>' +
+        '<span class="cnt"></span>' +
+        '<button data-act="plus" aria-label="increase">+</button>';
+      row.querySelector(".name").textContent = r.name;
+      row.querySelector(".cnt").textContent = r.amount;
+      row.querySelector('[data-act="minus"]').addEventListener("click", function(){
+        changeCommanderDamage(r.id, -1, r.name, r.accent);
+      });
+      row.querySelector('[data-act="plus"]').addEventListener("click", function(){
+        changeCommanderDamage(r.id, 1, r.name, r.accent);
+      });
+      el.cmdrList.appendChild(row);
+    });
+  }
+
+  // ---------- Commander Damage collapse ----------
+  function loadCmdrCollapsed(){
+    try{
+      var raw = localStorage.getItem(CMDR_COLLAPSED_KEY);
+      if(raw === null) return true; // collapsed by default
+      return raw === "1";
+    }catch(e){
+      return true;
+    }
+  }
+
+  function applyCmdrCollapsed(){
+    el.cmdrBody.classList.toggle("hidden", cmdrCollapsed);
+    el.cmdrToggleBtn.textContent = cmdrCollapsed ? "▸ Show" : "▾ Hide";
+    el.cmdrToggleBtn.setAttribute("aria-expanded", cmdrCollapsed ? "false" : "true");
+  }
+
+  el.cmdrToggleBtn.addEventListener("click", function(){
+    cmdrCollapsed = !cmdrCollapsed;
+    try{ localStorage.setItem(CMDR_COLLAPSED_KEY, cmdrCollapsed ? "1" : "0"); }catch(e){}
+    applyCmdrCollapsed();
+  });
+
+  // ---------- Mana Pool collapse ----------
+  function loadManaCollapsed(){
+    try{
+      var raw = localStorage.getItem(MANA_COLLAPSED_KEY);
+      if(raw === null) return false; // shown by default
+      return raw === "1";
+    }catch(e){
+      return false;
+    }
+  }
+
+  function applyManaCollapsed(){
+    el.manaBody.classList.toggle("hidden", manaCollapsed);
+    el.manaToggleBtn.textContent = manaCollapsed ? "▸ Show" : "▾ Hide";
+    el.manaToggleBtn.setAttribute("aria-expanded", manaCollapsed ? "false" : "true");
+  }
+
+  el.manaToggleBtn.addEventListener("click", function(){
+    manaCollapsed = !manaCollapsed;
+    try{ localStorage.setItem(MANA_COLLAPSED_KEY, manaCollapsed ? "1" : "0"); }catch(e){}
+    applyManaCollapsed();
+  });
+
+  // ---------- Roll (dice + coin) — flashes a status banner on the life card,
+  // and briefly on your card in everyone else's Table view too. ----------
+  var selectedDie = 20;
+  var rollAnimTimer = null;
+  var rollClearTimer = null;
+
+  function setRollStatus(status){
+    rollStatus = status;
+    renderRollBanner();
+    pushSnapshot();
+  }
+
+  function renderRollBanner(){
+    if(!rollStatus){
+      el.rollBanner.classList.remove("show");
+      return;
+    }
+    el.rollBanner.textContent = rollStatusText(rollStatus, state.name || "Player", true);
+    el.rollBanner.classList.add("show");
+  }
+
+  function performRoll(label, resultFn){
+    el.rollModal.classList.add("hidden");
+    clearInterval(rollAnimTimer);
+    clearTimeout(rollClearTimer);
+
+    setRollStatus({phase:"rolling", label:label, result:null});
+
+    var ticks = 0;
+    rollAnimTimer = setInterval(function(){
+      ticks++;
+      if(ticks >= 8){
+        clearInterval(rollAnimTimer);
+        setRollStatus({phase:"result", label:label, result:resultFn()});
+        rollClearTimer = setTimeout(function(){
+          setRollStatus(null);
+        }, 3000);
+      }
+    }, 60);
+  }
+
+  el.rollBtn.addEventListener("click", function(){
+    el.rollModal.classList.remove("hidden");
+  });
+  el.rollCloseBtn.addEventListener("click", function(){
+    el.rollModal.classList.add("hidden");
+  });
+  el.dieGrid.addEventListener("click", function(e){
+    var btn = e.target.closest(".die-btn");
+    if(!btn) return;
+    Array.prototype.forEach.call(el.dieGrid.querySelectorAll(".die-btn"), function(b){ b.classList.remove("selected"); });
+    btn.classList.add("selected");
+    selectedDie = parseInt(btn.getAttribute("data-die"), 10);
+    performRoll("d" + selectedDie, function(){ return String(1 + Math.floor(Math.random() * selectedDie)); });
+  });
+  el.flipCoinBtn.addEventListener("click", function(){
+    performRoll("Coin", function(){ return Math.random() < 0.5 ? "Heads" : "Tails"; });
+  });
+
+  // ---------- Reset / New game ----------
+  var pendingConfirm = null;
+
+  function openConfirm(text, onConfirm){
+    el.confirmText.textContent = text;
+    pendingConfirm = onConfirm;
+    el.confirmModal.classList.remove("hidden");
+  }
+  function closeConfirm(){
+    el.confirmModal.classList.add("hidden");
+    pendingConfirm = null;
+  }
+  el.confirmCancel.addEventListener("click", closeConfirm);
+  el.confirmOk.addEventListener("click", function(){
+    if(pendingConfirm) pendingConfirm();
+    closeConfirm();
+  });
+
+  el.resetBtn.addEventListener("click", function(){
+    openConfirm("Reset life, mana, tokens, creature counters, and commander damage back to the start of this game?", function(){
+      state.life = state.startingLife;
+      MANA_COLORS.forEach(function(c){ state.mana[c.key] = 0; });
+      state.tokens = [];
+      state.creatures = [];
+      state.commanderDamage = {};
+      lastSnapshot = null;
+      updateUndoButton();
+      saveState();
+      renderAll();
+    });
+  });
+
+  el.newGameBtn.addEventListener("click", function(){
+    openConfirm("Start a brand new game? This clears everything, including your starting life, and leaves the table.", function(){
+      leaveTable();
+      stopPolling();
+      state = defaultState();
+      lastSnapshot = null;
+      updateUndoButton();
+      saveState();
+      showSetup();
+    });
+  });
+
+  // ---------- Render all ----------
+  function renderAll(){
+    applyAccent(state.accent);
+    renderYouBanner();
+    renderLife();
+    renderMana();
+    renderTokens();
+    renderCreatures();
+    renderChips();
+    renderTable();
+    renderCommander();
+    renderTabletopOpponents();
+    renderRollBanner();
+    updateUndoButton();
+  }
+
+  // ---------- QR encoder ----------
+  // A small, self-contained QR generator. The app has to work on a LAN with
+  // no internet (that's the whole point of it), so pulling in a CDN library
+  // isn't an option and there's no build step to bundle one.
+  //
+  // Scope is deliberately narrow: byte mode, error correction level M,
+  // versions 1-3 only. That caps the payload at 42 bytes, which covers every
+  // address this thing will ever produce ("http://192.168.100.100:8000" is
+  // 27). Versions 1-3 are all single-block at EC level M, which means no
+  // block interleaving — that's most of the complexity of a general encoder,
+  // skipped. Over 42 bytes qrMatrix() returns null and the share modal just
+  // hides the QR and shows the link instead.
+
+  var QR_VERSIONS = [
+    // version, modules per side, data codewords, ec codewords, alignment center
+    {v:1, size:21, data:16, ec:10, align:0},
+    {v:2, size:25, data:28, ec:16, align:18},
+    {v:3, size:29, data:44, ec:26, align:22}
+  ];
+
+  // Pre-computed 15-bit format strings for EC level M, masks 0-7.
+  var QR_FORMAT_M = [0x5412,0x5125,0x5E7C,0x5B4B,0x45F9,0x40CE,0x4F97,0x4AA0];
+
+  var QR_EXP = [];
+  var QR_LOG = [];
+  (function(){
+    var x = 1;
+    for(var i = 0; i < 255; i++){
+      QR_EXP[i] = x;
+      QR_LOG[x] = i;
+      x = x << 1;
+      if(x & 0x100){ x = x ^ 0x11D; }   // GF(256) primitive polynomial
+    }
+    QR_EXP[255] = QR_EXP[0];
+  })();
+
+  function qrMul(a, b){
+    if(a === 0 || b === 0) return 0;
+    return QR_EXP[(QR_LOG[a] + QR_LOG[b]) % 255];
+  }
+
+  function qrGenPoly(ecLen){
+    var poly = [1];
+    for(var i = 0; i < ecLen; i++){
+      var next = [];
+      for(var k = 0; k <= poly.length; k++){ next[k] = 0; }
+      for(var j = 0; j < poly.length; j++){
+        next[j] = next[j] ^ poly[j];                       // multiply by x
+        next[j + 1] = next[j + 1] ^ qrMul(poly[j], QR_EXP[i]);
+      }
+      poly = next;
+    }
+    return poly;
+  }
+
+  function qrEcCodewords(data, ecLen){
+    var gen = qrGenPoly(ecLen);
+    var res = [];
+    var i, j;
+    for(i = 0; i < ecLen; i++){ res[i] = 0; }
+    for(i = 0; i < data.length; i++){
+      var factor = data[i] ^ res[0];
+      res.shift();
+      res.push(0);
+      for(j = 0; j < ecLen; j++){
+        res[j] = res[j] ^ qrMul(gen[j + 1], factor);
+      }
+    }
+    return res;
+  }
+
+  function qrUtf8Bytes(str){
+    var out = [];
+    for(var i = 0; i < str.length; i++){
+      var c = str.charCodeAt(i);
+      if(c < 0x80){
+        out.push(c);
+      }else if(c < 0x800){
+        out.push(0xC0 | (c >> 6), 0x80 | (c & 0x3F));
+      }else{
+        out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 0x3F), 0x80 | (c & 0x3F));
+      }
+    }
+    return out;
+  }
+
+  function qrMaskAt(mask, row, col){
+    switch(mask){
+      case 0: return (row + col) % 2 === 0;
+      case 1: return row % 2 === 0;
+      case 2: return col % 3 === 0;
+      case 3: return (row + col) % 3 === 0;
+      case 4: return (Math.floor(row / 2) + Math.floor(col / 3)) % 2 === 0;
+      case 5: return ((row * col) % 2) + ((row * col) % 3) === 0;
+      case 6: return ((((row * col) % 2) + ((row * col) % 3)) % 2) === 0;
+      default: return (((((row + col) % 2) + ((row * col) % 3))) % 2) === 0;
+    }
+  }
+
+  function qrPlaceFinder(m, size, row, col){
+    for(var r = -1; r <= 7; r++){
+      for(var c = -1; c <= 7; c++){
+        var rr = row + r, cc = col + c;
+        if(rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+        var on = (r >= 0 && r <= 6 && (c === 0 || c === 6)) ||
+                 (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||
+                 (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+        m[rr][cc] = on;
+      }
+    }
+  }
+
+  function qrBuildMatrix(spec, codewords, mask){
+    var size = spec.size;
+    var m = [];
+    var r, c, i;
+    for(r = 0; r < size; r++){
+      m[r] = [];
+      for(c = 0; c < size; c++){ m[r][c] = null; }
+    }
+
+    qrPlaceFinder(m, size, 0, 0);
+    qrPlaceFinder(m, size, size - 7, 0);
+    qrPlaceFinder(m, size, 0, size - 7);
+
+    // timing patterns
+    for(i = 8; i < size - 8; i++){
+      m[6][i] = (i % 2 === 0);
+      m[i][6] = (i % 2 === 0);
+    }
+
+    // the single alignment pattern (versions 2 and 3 only)
+    if(spec.align){
+      var a = spec.align;
+      for(r = -2; r <= 2; r++){
+        for(c = -2; c <= 2; c++){
+          m[a + r][a + c] = (Math.max(Math.abs(r), Math.abs(c)) !== 1);
+        }
+      }
+    }
+
+    // reserve the format-info areas so data placement skips them
+    for(i = 0; i < 9; i++){
+      if(m[8][i] === null) m[8][i] = false;
+      if(m[i][8] === null) m[i][8] = false;
+    }
+    for(i = 0; i < 8; i++){
+      if(m[8][size - 1 - i] === null) m[8][size - 1 - i] = false;
+      if(m[size - 1 - i][8] === null) m[size - 1 - i][8] = false;
+    }
+
+    // data, snaking up and down two columns at a time from the bottom right
+    var inc = -1;
+    var row = size - 1;
+    var bitIndex = 7;
+    var byteIndex = 0;
+    for(var col = size - 1; col > 0; col -= 2){
+      if(col === 6) col -= 1;          // the vertical timing column is skipped
+      while(true){
+        for(var off = 0; off < 2; off++){
+          if(m[row][col - off] === null){
+            var dark = false;
+            if(byteIndex < codewords.length){
+              dark = ((codewords[byteIndex] >>> bitIndex) & 1) === 1;
+            }
+            if(qrMaskAt(mask, row, col - off)) dark = !dark;
+            m[row][col - off] = dark;
+            bitIndex--;
+            if(bitIndex === -1){ byteIndex++; bitIndex = 7; }
+          }
+        }
+        row += inc;
+        if(row < 0 || row >= size){ row -= inc; inc = -inc; break; }
+      }
+    }
+
+    // format info, written twice, plus the always-dark module
+    var fmt = QR_FORMAT_M[mask];
+    for(i = 0; i < 15; i++){
+      var bit = ((fmt >> i) & 1) === 1;
+      if(i < 6){ m[i][8] = bit; }
+      else if(i < 8){ m[i + 1][8] = bit; }
+      else { m[size - 15 + i][8] = bit; }
+
+      if(i < 8){ m[8][size - i - 1] = bit; }
+      else if(i < 9){ m[8][15 - i] = bit; }
+      else { m[8][14 - i] = bit; }
+    }
+    m[size - 8][8] = true;
+
+    return m;
+  }
+
+  function qrPenalty(m){
+    var size = m.length;
+    var score = 0;
+    var r, c, i, run, last;
+
+    // rule 1 — runs of five or more of the same colour
+    for(r = 0; r < size; r++){
+      run = 1; last = m[r][0];
+      for(c = 1; c < size; c++){
+        if(m[r][c] === last){ run++; }
+        else { if(run >= 5) score += 3 + (run - 5); run = 1; last = m[r][c]; }
+      }
+      if(run >= 5) score += 3 + (run - 5);
+    }
+    for(c = 0; c < size; c++){
+      run = 1; last = m[0][c];
+      for(r = 1; r < size; r++){
+        if(m[r][c] === last){ run++; }
+        else { if(run >= 5) score += 3 + (run - 5); run = 1; last = m[r][c]; }
+      }
+      if(run >= 5) score += 3 + (run - 5);
+    }
+
+    // rule 2 — 2x2 blocks of one colour
+    for(r = 0; r < size - 1; r++){
+      for(c = 0; c < size - 1; c++){
+        var v = m[r][c];
+        if(m[r][c + 1] === v && m[r + 1][c] === v && m[r + 1][c + 1] === v) score += 3;
+      }
+    }
+
+    // rule 3 — finder-like 1:1:3:1:1 patterns
+    var p1 = [true,false,true,true,true,false,true,false,false,false,false];
+    var p2 = [false,false,false,false,true,false,true,true,true,false,true];
+    function matches(get, start, pat){
+      for(var k = 0; k < 11; k++){ if(get(start + k) !== pat[k]) return false; }
+      return true;
+    }
+    for(r = 0; r < size; r++){
+      for(c = 0; c <= size - 11; c++){
+        var rowGet = (function(rr){ return function(x){ return m[rr][x]; }; })(r);
+        if(matches(rowGet, c, p1)) score += 40;
+        if(matches(rowGet, c, p2)) score += 40;
+      }
+    }
+    for(c = 0; c < size; c++){
+      for(r = 0; r <= size - 11; r++){
+        var colGet = (function(cc){ return function(x){ return m[x][cc]; }; })(c);
+        if(matches(colGet, r, p1)) score += 40;
+        if(matches(colGet, r, p2)) score += 40;
+      }
+    }
+
+    // rule 4 — overall balance of dark to light
+    var dark = 0;
+    for(r = 0; r < size; r++){
+      for(c = 0; c < size; c++){ if(m[r][c]) dark++; }
+    }
+    var pct = (dark * 100) / (size * size);
+    score += Math.floor(Math.abs(pct - 50) / 5) * 10;
+
+    return score;
+  }
+
+  // Returns a size x size array of booleans, or null if `text` is too long
+  // for version 3 (42 bytes).
+  function qrMatrix(text){
+    var bytes = qrUtf8Bytes(String(text));
+    var spec = null;
+    var i;
+    for(i = 0; i < QR_VERSIONS.length; i++){
+      // 2 codewords of overhead: 4-bit mode indicator + 8-bit length + 4-bit terminator
+      if(bytes.length + 2 <= QR_VERSIONS[i].data){ spec = QR_VERSIONS[i]; break; }
+    }
+    if(!spec) return null;
+
+    // bit stream -> data codewords
+    var bits = [];
+    function push(value, len){
+      for(var k = len - 1; k >= 0; k--){ bits.push((value >> k) & 1); }
+    }
+    push(4, 4);                    // byte mode
+    push(bytes.length, 8);         // character count (8 bits for versions 1-9)
+    for(i = 0; i < bytes.length; i++){ push(bytes[i], 8); }
+    for(i = 0; i < 4 && bits.length < spec.data * 8; i++){ bits.push(0); }  // terminator
+    while(bits.length % 8 !== 0){ bits.push(0); }
+
+    var data = [];
+    for(i = 0; i < bits.length; i += 8){
+      var b = 0;
+      for(var j = 0; j < 8; j++){ b = (b << 1) | bits[i + j]; }
+      data.push(b);
+    }
+    var padIndex = 0;
+    while(data.length < spec.data){
+      data.push(padIndex % 2 === 0 ? 0xEC : 0x11);
+      padIndex++;
+    }
+
+    var codewords = data.concat(qrEcCodewords(data, spec.ec));
+
+    var best = null;
+    var bestScore = Infinity;
+    for(var mask = 0; mask < 8; mask++){
+      var m = qrBuildMatrix(spec, codewords, mask);
+      var score = qrPenalty(m);
+      if(score < bestScore){ bestScore = score; best = m; }
+    }
+    return best;
+  }
+
+  // ---------- Share / invite ----------
+  // The QR is how a second phone joins without walking to the host computer,
+  // and once one person is in, their screen becomes the join station for
+  // everyone else.
+  var joinInfo = null;
+
+  function fetchJoinInfo(cb){
+    fetch("/api/join").then(function(r){ return r.json(); }).then(function(info){
+      if(info && info.url) joinInfo = info;
+      if(cb) cb();
+    }).catch(function(){ if(cb) cb(); });
+  }
+
+  function shareTarget(){
+    // Deliberately the host's numeric address rather than location.origin:
+    // someone who joined by typing mtg.local would otherwise pass that on to
+    // a phone that can't resolve it. Falls back to our own address only if
+    // the server didn't answer.
+    return (joinInfo && joinInfo.url) || window.location.origin;
+  }
+
+  function drawQr(canvas, text){
+    var m = qrMatrix(text);
+    if(!m) return false;
+    var quiet = 4;
+    var modules = m.length + quiet * 2;
+    // Pick an integer scale so the canvas is never resized by CSS — a
+    // fractional scale makes some modules a pixel wider than others, which is
+    // exactly what a camera at an angle struggles with.
+    var scale = Math.max(4, Math.floor(232 / modules));
+    canvas.width = modules * scale;
+    canvas.height = modules * scale;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000000";
+    for(var r = 0; r < m.length; r++){
+      for(var c = 0; c < m.length; c++){
+        if(m[r][c]) ctx.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
+      }
+    }
+    return true;
+  }
+
+  function smsHref(url){
+    // With no recipient number, iOS wants sms:&body= and Android sms:?body=.
+    // Getting this wrong opens an empty message, which is the whole point of
+    // the button, so it's worth the user-agent sniff.
+    var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    return "sms:" + (isIOS ? "&" : "?") + "body=" +
+           encodeURIComponent("Join the MTG table: " + url);
+  }
+
+  function renderShare(){
+    var url = shareTarget();
+    el.shareUrl.textContent = url;
+    el.shareUrl.href = url;
+    el.shareSms.href = smsHref(url);
+    el.shareQrFrame.classList.toggle("hidden", !drawQr(el.shareQr, url));
+
+    if(joinInfo && joinInfo.nameUrl){
+      var code = document.createElement("code");
+      code.textContent = joinInfo.nameUrl;
+      el.shareAlt.textContent = "";
+      el.shareAlt.appendChild(document.createTextNode("or type "));
+      el.shareAlt.appendChild(code);
+      el.shareAlt.appendChild(document.createTextNode(
+        " \u2014 iPhones only, Android can't resolve it"));
+      el.shareAlt.classList.remove("hidden");
+    }else{
+      el.shareAlt.classList.add("hidden");
+    }
+  }
+
+  function openShare(){
+    el.shareModal.classList.remove("hidden");
+    renderShare();
+    // Re-check in case the host's address changed since the page loaded.
+    fetchJoinInfo(renderShare);
+  }
+
+  el.setupShareBtn.addEventListener("click", openShare);
+  el.tableShareBtn.addEventListener("click", openShare);
+  el.shareClose.addEventListener("click", function(){
+    el.shareModal.classList.add("hidden");
+  });
+
+  // ---------- Init ----------
+  function init(){
+    PLAYER_ID = getOrCreatePlayerId();
+    state = loadState();
+    fetchJoinInfo(null);
+    cmdrCollapsed = loadCmdrCollapsed();
+    applyCmdrCollapsed();
+    manaCollapsed = loadManaCollapsed();
+    applyManaCollapsed();
+    tabletopMode = loadTabletopMode();
+    tabletopPositions = loadTabletopPositions();
+    applyTabletopMode();
+    renderAll();
+    if(state.started){
+      showMain();
+      startPolling();
+    }else{
+      showSetup();
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

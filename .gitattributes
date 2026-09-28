@@ -1,0 +1,7 @@
+# Normalise line endings in the repo, and give Windows scripts CRLF on checkout.
+# cmd.exe can mis-handle labels and GOTO in LF-only batch files.
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh  text eol=lf
+*.png binary

@@ -1,0 +1,20 @@
+# Build output from make-bundle.bat. The zip goes on a GitHub release instead.
+build/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# Screenshots test_share.py leaves behind
+share-modal*.png
+
+# Local working files that aren't part of the project
+to-delete/
+Claude outputs/
+*Session Handoff*.md
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

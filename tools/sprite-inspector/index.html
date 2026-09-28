@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sprite Inspector</title>
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    --bg:#f4f2ee; --panel:#fff; --ink:#1b1b1a; --muted:#6b6862;
+    --line:#ddd9d2; --accent:#4b7a2a; --accent-soft:#e6efdc;
+    --chip:#efece6; --danger:#a33; --warn:#8a6d1f; --ghost:#c9c4bb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a; --panel:#1f2123; --ink:#eceae6; --muted:#9a968f;
+      --line:#313437; --accent:#8ec860; --accent-soft:#25301c;
+      --chip:#2a2d30; --danger:#d97; --warn:#d4b45c; --ghost:#4a4e52;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a; --panel:#1f2123; --ink:#eceae6; --muted:#9a968f;
+    --line:#313437; --accent:#8ec860; --accent-soft:#25301c;
+    --chip:#2a2d30; --danger:#d97; --warn:#d4b45c; --ghost:#4a4e52;
+  }
+  *,*::before,*::after{box-sizing:inherit}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding:20px 16px 48px}
+  .wrap{max-width:1000px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 12px;font-weight:600}
+  .panel.hidden{display:none}
+
+  #drop{border:2px dashed var(--line);border-radius:10px;padding:26px 16px;text-align:center;
+    color:var(--muted);font-size:14px;transition:border-color .15s,background .15s}
+  #drop.over{border-color:var(--accent);background:var(--accent-soft)}
+  #drop b{color:var(--ink)}
+
+  .stage{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .viewport{background:var(--chip);border:1px solid var(--line);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:8px;
+    max-width:100%;overflow:auto}
+  canvas#stage{image-rendering:pixelated;display:block}
+  .readout{flex:1 1 230px;min-width:190px;font-size:13px;color:var(--muted)}
+  .readout b{color:var(--ink);font-weight:600}
+  .readout div{margin-bottom:4px}
+
+  .rows{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  button{font:inherit;color:var(--ink);background:var(--chip);border:1px solid var(--line);
+    border-radius:8px;min-height:38px;padding:0 14px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.on{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .ctl{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .ctl label{font-size:13px;color:var(--muted);min-width:64px}
+  input[type=range]{flex:1 1 150px;min-width:130px;accent-color:var(--accent);height:38px}
+  input[type=number]{font:inherit;color:var(--ink);background:var(--chip);border:1px solid var(--line);
+    border-radius:8px;height:38px;width:78px;padding:0 8px}
+  input[type=text]{font:inherit;color:var(--ink);background:var(--chip);border:1px solid var(--line);
+    border-radius:8px;height:38px;padding:0 10px;flex:1 1 160px;min-width:140px}
+  .val{font-variant-numeric:tabular-nums;color:var(--ink);min-width:54px;text-align:right;font-size:13px}
+  .toggles{display:flex;gap:8px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--muted);margin:10px 0 0}
+  .warn{font-size:13px;color:var(--warn);margin:10px 0 0}
+
+  .sheetwrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--chip);padding:8px;max-height:60vh}
+  canvas#sheet{image-rendering:pixelated;display:block;cursor:crosshair}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  td.num{font-variant-numeric:tabular-nums}
+  tbody tr{cursor:pointer}
+  .kill{background:none;border:none;color:var(--danger);cursor:pointer;min-height:32px;padding:0 6px}
+  .empty{color:var(--muted);font-size:13px;padding:8px 0}
+  pre{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:12px;
+    overflow:auto;font-size:12px;margin:0;max-height:340px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sprite Inspector</h1>
+  <p class="sub">Audition frame ranges, correct anchor drift, and export an animation map.</p>
+
+  <div class="panel" id="loadPanel">
+    <h2>Sheet</h2>
+    <div id="drop">
+      <b>Drop a sprite sheet here</b>, or <button id="pickBtn" style="min-height:32px">choose a file</button>
+      <input type="file" id="file" accept="image/*" hidden>
+      <div id="loadMsg" class="hint"></div>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="gridPanel">
+    <h2>Grid</h2>
+    <div class="ctl">
+      <label for="cw">Cell</label>
+      <input type="number" id="cw" min="1" step="1" value="64"> ×
+      <input type="number" id="ch" min="1" step="1" value="64">
+      <button id="guessBtn">Guess</button>
+      <button id="reloadBtn">Load another</button>
+    </div>
+    <div class="readout" id="gridInfo"></div>
+    <div class="warn" id="gridWarn" style="display:none"></div>
+  </div>
+
+  <div class="panel hidden" id="mainPanel">
+    <h2>Preview</h2>
+    <div class="stage">
+      <div class="viewport"><canvas id="stage"></canvas></div>
+      <div class="readout">
+        <div>Range <b id="rRange">–</b></div>
+        <div>Frame <b id="rFrame">0</b>, row <b id="rRow">0</b>, col <b id="rCol">0</b></div>
+        <div>Offset <b id="rOff">0, 0</b></div>
+        <div>Raw drift <b id="rDrift">–</b></div>
+        <div>Loop <b id="rDur">–</b> ms at <b id="rFps">8</b> fps</div>
+        <div style="margin-top:10px">
+          <button id="playBtn" class="primary">Pause</button>
+          <button id="stepBtn">Step</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="anchorPanel">
+    <h2>Anchor</h2>
+    <div class="toggles" id="anchorBtns">
+      <button data-a="none">Off (raw art)</button>
+      <button data-a="legs" class="on">Legs</button>
+      <button data-a="mass">Mass centre</button>
+      <button data-a="bbox">Bounding box</button>
+    </div>
+    <div class="toggles" style="margin-top:8px">
+      <button id="baseBtn" class="on">Lock baseline: on</button>
+      <button id="guideBtn" class="on">Guides: on</button>
+      <button id="ghostBtn">Onion skin: off</button>
+    </div>
+    <div class="ctl" style="margin-top:12px">
+      <label for="legDepth">Leg rows</label>
+      <input type="number" id="legDepth" min="1" step="1" value="18">
+      <span class="hint" style="margin:0">Rows up from the lowest opaque pixel used for the legs anchor.</span>
+    </div>
+    <p class="hint">Sheets often draw forward travel inside each cell, so a frame range played in place drifts sideways. Each anchor re-centres every frame on a computed point. Legs ignores raised arms and weapons, which is usually what you want.</p>
+  </div>
+
+  <div class="panel hidden" id="playPanel">
+    <h2>Range</h2>
+    <div class="rows" id="rowBtns"></div>
+    <div class="ctl">
+      <label for="startF">Start</label><input type="number" id="startF" min="0" value="0">
+      <label for="endF" style="min-width:34px">End</label><input type="number" id="endF" min="0" value="0">
+      <button id="nonEmptyBtn">Trim empties</button>
+    </div>
+    <div class="ctl">
+      <label for="fps">Speed</label><input type="range" id="fps" min="1" max="30" value="8"><span class="val" id="fpsVal">8 fps</span>
+    </div>
+    <div class="ctl">
+      <label for="scale">Scale</label><input type="range" id="scale" min="1" max="8" value="3"><span class="val" id="scaleVal">3×</span>
+    </div>
+    <div class="toggles">
+      <button id="pingBtn">Ping-pong: off</button>
+      <button id="flipBtn">Flip X: off</button>
+      <button id="themeBtn">Theme: auto</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="sheetPanel">
+    <h2>Sheet — click sets start, shift-click sets end</h2>
+    <div class="sheetwrap"><canvas id="sheet"></canvas></div>
+  </div>
+
+  <div class="panel hidden" id="mapPanel">
+    <h2>Animations</h2>
+    <div class="ctl">
+      <input type="text" id="animName" placeholder="idle, walk, sleep, attack…">
+      <button id="addBtn" class="primary">Add</button>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Frames</th><th>fps</th><th>Loop</th><th></th></tr></thead>
+      <tbody id="mapBody"></tbody>
+    </table>
+    <div class="empty" id="mapEmpty">Nothing mapped yet.</div>
+  </div>
+
+  <div class="panel hidden" id="exportPanel">
+    <h2>Export</h2>
+    <pre id="out">{}</pre>
+    <div style="margin-top:12px">
+      <button id="copyBtn">Copy JSON</button>
+      <button id="dlBtn">Download JSON</button>
+      <button id="offsetsBtn" class="on">Per-frame offsets: on</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// Tries this first so the tool opens ready to go. Falls back to the drop zone.
+const DEFAULT_SHEET = "../../assets/goblinsword_fixed.png";
+const PAD = 18;
+
+const $ = id => document.getElementById(id);
+const stage = $('stage'), sctx = stage.getContext('2d');
+const sheetC = $('sheet'), shctx = sheetC.getContext('2d');
+
+let img = null, sheetName = '';
+let FW = 64, FH = 64, COLS = 1, ROWS = 1, COUNT = 1;
+let ANCHOR_X = 32, FLOOR_Y = 58;
+let A = [];            // per-frame metrics
+let map = [];
+let running = false;
+
+let state = {
+  start:0, end:0, fps:8, scale:3, anchor:'legs', baseline:true, guides:true,
+  ghost:false, ping:false, flip:false, offsets:true, legDepth:18,
+  i:0, dir:1, playing:true, last:0, acc:0
+};
+
+/* ---------- loading ---------- */
+
+function loadFromURL(url, name){
+  const im = new Image();
+  im.onload = () => { img = im; sheetName = name; onSheetReady(); };
+  im.onerror = () => {
+    $('loadMsg').textContent = 'No sheet at ' + url + '. Drop one in.';
+  };
+  im.src = url;
+}
+
+function loadFromFile(f){
+  if(!f || !f.type.startsWith('image/')) return;
+  const r = new FileReader();
+  r.onload = () => loadFromURL(r.result, f.name);
+  r.readAsDataURL(f);
+}
+
+$('pickBtn').onclick = () => $('file').click();
+$('file').onchange = e => loadFromFile(e.target.files[0]);
+$('reloadBtn').onclick = () => {
+  running = false;
+  ['gridPanel','mainPanel','anchorPanel','playPanel','sheetPanel','mapPanel','exportPanel']
+    .forEach(p => $(p).classList.add('hidden'));
+  $('loadPanel').classList.remove('hidden');
+  $('loadMsg').textContent = '';
+};
+
+const drop = $('drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('over');
+}));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop', e => loadFromFile(e.dataTransfer.files[0]));
+
+/* ---------- grid ---------- */
+
+function divisors(n, lo, hi){
+  const out = [];
+  for(let d=lo; d<=Math.min(hi,n); d++) if(n % d === 0) out.push(d);
+  return out;
+}
+
+// Alpha map for the whole sheet, built once per load. Throws if the canvas is
+// tainted, which is how we detect a file:// load we cannot analyse.
+let ALPHA = null, COL_USED = null, ROW_USED = null;
+
+function profileSheet(){
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d', {willReadFrequently:true});
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height).data;
+  ALPHA = new Uint8Array(c.width * c.height);
+  COL_USED = new Uint8Array(c.width);
+  ROW_USED = new Uint8Array(c.height);
+  for(let y=0; y<c.height; y++) for(let px=0; px<c.width; px++){
+    const a = d[(y*c.width+px)*4+3] > 16 ? 1 : 0;
+    ALPHA[y*c.width+px] = a;
+    if(a){ COL_USED[px] = 1; ROW_USED[y] = 1; }
+  }
+}
+
+// How cleanly a candidate cell size cuts the sheet: the fraction of interior cell
+// boundaries that fall on fully transparent lines. A correct grid rarely slices
+// through artwork, so this beats guessing from cell proportions.
+function gutterScore(used, total, size){
+  const cuts = total/size;
+  if(cuts < 2) return -1;
+  let clean = 0, n = 0;
+  for(let k=1; k<cuts; k++){
+    const at = k*size;
+    if(!used[at] && !used[at-1]) clean++;
+    n++;
+  }
+  return n ? clean/n : -1;
+}
+
+function bestAxis(used, total){
+  const cands = divisors(total, 8, 512);
+  let best = null;
+  for(const size of cands){
+    const s = gutterScore(used, total, size);
+    if(s < 0) continue;
+    // Highest clean-boundary score wins; among ties take the smallest cell, since
+    // any multiple of a correct size also scores clean.
+    if(!best || s > best.s + 1e-9) best = {size, s};
+  }
+  return best;
+}
+
+function guessCell(){
+  const w = img.width, h = img.height;
+  const bw = COL_USED ? bestAxis(COL_USED, w) : null;
+  const bh = ROW_USED ? bestAxis(ROW_USED, h) : null;
+  // Gutter detection only works on sheets with transparent margins. Sheets whose
+  // art runs edge to edge fall back to proportion.
+  if(bw && bh && bw.s >= 0.6 && bh.s >= 0.6) return {w:bw.size, h:bh.size};
+
+  const cw = divisors(w, 8, 256), chs = divisors(h, 8, 256);
+  let best = null;
+  for(const a of cw) for(const b of chs){
+    if((w/a)*(h/b) < 2) continue;
+    const square = Math.abs(a-b) / Math.max(a,b);
+    const size   = Math.abs(Math.log(a/48));
+    const score  = square*3 + size;
+    if(!best || score < best.score) best = {a,b,score};
+  }
+  return best ? {w:best.a, h:best.b} : {w:Math.min(64,w), h:Math.min(64,h)};
+}
+
+function applyGrid(){
+  FW = Math.max(1, parseInt($('cw').value)||1);
+  FH = Math.max(1, parseInt($('ch').value)||1);
+  COLS = Math.floor(img.width / FW);
+  ROWS = Math.floor(img.height / FH);
+  COUNT = COLS * ROWS;
+  ANCHOR_X = Math.round(FW/2);
+  FLOOR_Y = Math.round(FH * 0.90);
+  const dflt = Math.max(1, Math.round(FH * 0.28));
+  if(!state.legDepthTouched){ state.legDepth = dflt; $('legDepth').value = dflt; }
+
+  const ragged = (img.width % FW) || (img.height % FH);
+  $('gridWarn').style.display = ragged ? 'block' : 'none';
+  if(ragged){
+    $('gridWarn').textContent =
+      'Sheet is ' + img.width + '×' + img.height + ', which is not an exact multiple of ' +
+      FW + '×' + FH + '. ' + (img.width % FW) + 'px right and ' + (img.height % FH) +
+      'px bottom will be ignored.';
+  }
+
+  analyse();
+  const used = A.filter(a => a.pixels > 0).length;
+  $('gridInfo').innerHTML =
+    '<div><b>' + sheetName + '</b>, ' + img.width + '×' + img.height + '</div>' +
+    '<div>' + COLS + ' columns × ' + ROWS + ' rows = <b>' + COUNT + '</b> cells, <b>' +
+    used + '</b> with art</div>';
+
+  $('startF').max = COUNT-1; $('endF').max = COUNT-1;
+  buildRowButtons();
+  trimToContent();
+}
+
+function onSheetReady(){
+  state.legDepthTouched = false;
+  $('loadPanel').classList.add('hidden');
+  ['gridPanel','mainPanel','anchorPanel','playPanel','sheetPanel','mapPanel','exportPanel']
+    .forEach(p => $(p).classList.remove('hidden'));
+  try {
+    profileSheet();
+    const g = guessCell();
+    $('cw').value = g.w; $('ch').value = g.h;
+    applyGrid();
+  } catch(err){
+    // getImageData on a file:// image taints the canvas in most browsers.
+    $('reloadBtn').click();
+    $('loadMsg').innerHTML =
+      'Could not read the pixels of that sheet. If you opened this page from disk, ' +
+      'either drop the file in here, or serve the folder (for this repo: run <b>server.py</b> ' +
+      'and open the tool over http).';
+    return;
+  }
+  map = []; renderMap();
+  if(!running){ running = true; state.last = 0; state.acc = 0; requestAnimationFrame(tick); }
+}
+
+$('cw').oninput = () => { if(img) applyGrid(); };
+$('ch').oninput = () => { if(img) applyGrid(); };
+$('guessBtn').onclick = () => {
+  const g = guessCell();
+  $('cw').value = g.w; $('ch').value = g.h;
+  state.legDepthTouched = false;
+  applyGrid();
+};
+$('legDepth').oninput = e => {
+  state.legDepth = Math.max(1, parseInt(e.target.value)||1);
+  state.legDepthTouched = true;
+  analyse();
+};
+
+/* ---------- analysis ---------- */
+
+function analyse(){
+  const W = img.width;
+  const at = (px,py) => ALPHA[py*W+px];
+
+  A = [];
+  for(let n=0; n<COUNT; n++){
+    const ox = (n%COLS)*FW, oy = Math.floor(n/COLS)*FH;
+    let x0=1e9, x1=-1, y0=1e9, y1=-1, mx=0, my=0, m=0;
+    for(let py=0; py<FH; py++) for(let px=0; px<FW; px++){
+      if(at(ox+px, oy+py)){
+        if(px<x0) x0=px; if(px>x1) x1=px;
+        if(py<y0) y0=py; if(py>y1) y1=py;
+        mx+=px; my+=py; m++;
+      }
+    }
+    if(m === 0){ A.push({pixels:0, mass:ANCHOR_X, legs:ANCHOR_X, bbox:ANCHOR_X, base:FLOOR_Y, x0:0,x1:0,y0:0,y1:0}); continue; }
+    let lx=0, lc=0;
+    for(let py=Math.max(0, y1-(state.legDepth-1)); py<=y1; py++)
+      for(let px=0; px<FW; px++) if(at(ox+px, oy+py)){ lx+=px; lc++; }
+    A.push({pixels:m, x0,x1,y0,y1, mass:mx/m, legs: lc?lx/lc:mx/m, bbox:(x0+x1)/2, base:y1});
+  }
+}
+
+function offsetFor(n){
+  const a = A[n]; if(!a || a.pixels === 0) return {dx:0, dy:0};
+  return {
+    dx: state.anchor === 'none' ? 0 : Math.round(ANCHOR_X - a[state.anchor]),
+    dy: state.baseline ? Math.round(FLOOR_Y - a.base) : 0
+  };
+}
+
+/* ---------- drawing ---------- */
+
+function cssVar(n){
+  return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
+}
+
+function drawSprite(ctx, n, s, alpha){
+  const {dx,dy} = offsetFor(n);
+  const sx = (n%COLS)*FW, sy = Math.floor(n/COLS)*FH;
+  ctx.save();
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  if(state.flip){ ctx.translate(ctx.canvas.width, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(img, sx, sy, FW, FH, (PAD+dx)*s, (PAD+dy)*s, FW*s, FH*s);
+  ctx.restore();
+}
+
+function drawStage(){
+  const s = state.scale, W = (FW+PAD*2)*s, H = (FH+PAD*2)*s;
+  stage.width = W; stage.height = H;
+  sctx.imageSmoothingEnabled = false;
+  sctx.clearRect(0,0,W,H);
+  if(state.guides){
+    sctx.strokeStyle = cssVar('--ghost'); sctx.lineWidth = 1;
+    sctx.beginPath();
+    sctx.moveTo((PAD+ANCHOR_X)*s+.5, 0); sctx.lineTo((PAD+ANCHOR_X)*s+.5, H);
+    sctx.moveTo(0, (PAD+FLOOR_Y)*s+.5); sctx.lineTo(W, (PAD+FLOOR_Y)*s+.5);
+    sctx.stroke();
+    sctx.setLineDash([3,3]); sctx.strokeStyle = cssVar('--line');
+    sctx.strokeRect(PAD*s+.5, PAD*s+.5, FW*s, FH*s);
+    sctx.setLineDash([]);
+  }
+  if(state.ghost){
+    const prev = state.i > state.start ? state.i-1 : state.end;
+    drawSprite(sctx, prev, s, 0.22);
+  }
+  drawSprite(sctx, state.i, s, 1);
+}
+
+function drawSheet(){
+  sheetC.width = COLS*FW; sheetC.height = ROWS*FH;
+  shctx.imageSmoothingEnabled = false;
+  shctx.clearRect(0,0,sheetC.width,sheetC.height);
+  shctx.drawImage(img, 0, 0);
+  const tiny = FW < 28;
+  for(let n=0; n<COUNT; n++){
+    const ox = (n%COLS)*FW, oy = Math.floor(n/COLS)*FH;
+    const inR = n>=state.start && n<=state.end;
+    shctx.strokeStyle = inR ? cssVar('--accent') : cssVar('--line');
+    shctx.lineWidth = inR ? 2 : 1;
+    shctx.strokeRect(ox+1, oy+1, FW-2, FH-2);
+    if(A[n] && A[n].pixels && state.anchor !== 'none'){
+      shctx.fillStyle = cssVar('--accent');
+      shctx.fillRect(ox+A[n][state.anchor]-1, oy+A[n].base-1, 3, 3);
+    }
+    if(n === state.i){
+      shctx.strokeStyle = cssVar('--accent'); shctx.lineWidth = 3;
+      shctx.strokeRect(ox+2, oy+2, FW-4, FH-4);
+    }
+    if(!tiny){
+      shctx.fillStyle = cssVar('--muted');
+      shctx.font = '9px ui-monospace,monospace';
+      shctx.fillText(String(n), ox+4, oy+11);
+    }
+  }
+}
+
+/* ---------- playback ---------- */
+
+function tick(ts){
+  if(!running) return;
+  if(!state.last) state.last = ts;
+  const dt = ts - state.last; state.last = ts;
+  if(state.playing){
+    state.acc += dt;
+    const step = 1000/state.fps;
+    let guard = 0;
+    while(state.acc >= step && guard++ < 60){ state.acc -= step; advance(); }
+  }
+  drawStage(); drawSheet(); readout();
+  requestAnimationFrame(tick);
+}
+
+function advance(){
+  const a = state.start, b = state.end;
+  if(b <= a){ state.i = a; return; }
+  if(state.ping){
+    state.i += state.dir;
+    if(state.i >= b){ state.i = b; state.dir = -1; }
+    else if(state.i <= a){ state.i = a; state.dir = 1; }
+  } else {
+    state.i++; if(state.i > b) state.i = a;
+  }
+}
+
+function readout(){
+  $('rRange').textContent = state.start + ' – ' + state.end;
+  $('rFrame').textContent = state.i;
+  $('rRow').textContent = Math.floor(state.i/COLS);
+  $('rCol').textContent = state.i % COLS;
+  const {dx,dy} = offsetFor(state.i);
+  $('rOff').textContent = (dx>=0?'+':'') + dx + ', ' + (dy>=0?'+':'') + dy;
+  const key = state.anchor === 'none' ? 'legs' : state.anchor;
+  if(A[state.start] && A[state.end] && state.end > state.start &&
+     A[state.start].pixels && A[state.end].pixels){
+    const d = A[state.end][key] - A[state.start][key];
+    $('rDrift').textContent = d.toFixed(1) + ' px (' + (d/(state.end-state.start)).toFixed(2) + ' px/frame)';
+  } else $('rDrift').textContent = '–';
+  $('rFps').textContent = state.fps;
+  const n = state.end - state.start + 1;
+  const total = state.ping ? (n*2-2 || 1) : n;
+  $('rDur').textContent = Math.round(total * 1000/state.fps);
+}
+
+function clampRange(){
+  state.start = Math.max(0, Math.min(COUNT-1, state.start|0));
+  state.end   = Math.max(0, Math.min(COUNT-1, state.end|0));
+  if(state.end < state.start) state.end = state.start;
+  $('startF').value = state.start; $('endF').value = state.end;
+  if(state.i < state.start || state.i > state.end) state.i = state.start;
+  syncRowBtns();
+}
+function setRange(a,b){ state.start=a; state.end=b; state.i=a; state.dir=1; clampRange(); }
+
+function trimToContent(){
+  let a = 0, b = COUNT-1;
+  while(a < COUNT && A[a] && A[a].pixels === 0) a++;
+  while(b > a && A[b] && A[b].pixels === 0) b--;
+  setRange(Math.min(a, COUNT-1), Math.max(b, 0));
+}
+$('nonEmptyBtn').onclick = () => {
+  let a = state.start, b = state.end;
+  while(a <= b && A[a] && A[a].pixels === 0) a++;
+  while(b >= a && A[b] && A[b].pixels === 0) b--;
+  setRange(a, Math.max(a,b));
+};
+
+function buildRowButtons(){
+  const host = $('rowBtns'); host.innerHTML = '';
+  for(let r=0; r<ROWS; r++){
+    const a = r*COLS, b = Math.min(a+COLS-1, COUNT-1);
+    if(A.slice(a,b+1).every(f => f.pixels === 0)) continue;   // skip blank rows
+    const btn = document.createElement('button');
+    btn.textContent = 'Row ' + r + ' (' + a + '–' + b + ')';
+    btn.dataset.a = a; btn.dataset.b = b;
+    btn.onclick = () => setRange(a,b);
+    host.appendChild(btn);
+  }
+  const all = document.createElement('button');
+  all.textContent = 'All (0–' + (COUNT-1) + ')';
+  all.dataset.a = 0; all.dataset.b = COUNT-1;
+  all.onclick = () => setRange(0, COUNT-1);
+  host.appendChild(all);
+}
+function syncRowBtns(){
+  [...$('rowBtns').children].forEach(b =>
+    b.classList.toggle('on', +b.dataset.a === state.start && +b.dataset.b === state.end));
+}
+
+/* ---------- controls ---------- */
+
+$('startF').oninput = e => { state.start = +e.target.value; clampRange(); };
+$('endF').oninput   = e => { state.end   = +e.target.value; clampRange(); };
+$('fps').oninput    = e => { state.fps = +e.target.value; $('fpsVal').textContent = state.fps + ' fps'; };
+$('scale').oninput  = e => { state.scale = +e.target.value; $('scaleVal').textContent = state.scale + '×'; };
+$('playBtn').onclick = e => { state.playing = !state.playing; e.target.textContent = state.playing ? 'Pause' : 'Play'; };
+$('stepBtn').onclick = () => { state.playing = false; $('playBtn').textContent = 'Play'; advance(); };
+
+$('anchorBtns').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  state.anchor = b.dataset.a;
+  [...$('anchorBtns').children].forEach(x => x.classList.toggle('on', x === b));
+};
+function toggle(id, key, label){
+  $(id).onclick = e => {
+    state[key] = !state[key];
+    e.target.textContent = label + ': ' + (state[key] ? 'on' : 'off');
+    e.target.classList.toggle('on', state[key]);
+  };
+}
+toggle('baseBtn','baseline','Lock baseline');
+toggle('guideBtn','guides','Guides');
+toggle('ghostBtn','ghost','Onion skin');
+toggle('pingBtn','ping','Ping-pong');
+toggle('flipBtn','flip','Flip X');
+$('offsetsBtn').onclick = e => {
+  state.offsets = !state.offsets;
+  e.target.textContent = 'Per-frame offsets: ' + (state.offsets ? 'on' : 'off');
+  e.target.classList.toggle('on', state.offsets);
+  renderMap();
+};
+$('themeBtn').onclick = e => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : cur === 'light' ? null : 'dark';
+  if(next) document.documentElement.setAttribute('data-theme', next);
+  else document.documentElement.removeAttribute('data-theme');
+  e.target.textContent = 'Theme: ' + (next || 'auto');
+};
+
+sheetC.addEventListener('click', ev => {
+  const r = sheetC.getBoundingClientRect();
+  const x = (ev.clientX - r.left) * (sheetC.width / r.width);
+  const y = (ev.clientY - r.top)  * (sheetC.height / r.height);
+  const n = Math.floor(y/FH)*COLS + Math.floor(x/FW);
+  if(n < 0 || n >= COUNT) return;
+  if(ev.shiftKey) state.end = n; else { state.start = n; state.i = n; }
+  clampRange();
+});
+
+document.addEventListener('keydown', e => {
+  if(e.target.tagName === 'INPUT') return;
+  if(e.key === ' '){ e.preventDefault(); $('playBtn').click(); }
+  if(e.key === 'ArrowRight'){ e.preventDefault(); $('stepBtn').click(); }
+  if(e.key === 'ArrowLeft'){
+    e.preventDefault(); state.playing = false; $('playBtn').textContent = 'Play';
+    state.i = state.i > state.start ? state.i-1 : state.end;
+  }
+});
+
+/* ---------- animation map ---------- */
+
+$('addBtn').onclick = () => {
+  const name = ($('animName').value || '').trim(); if(!name) return;
+  map = map.filter(m => m.name !== name);
+  map.push({name, from:state.start, to:state.end, fps:state.fps,
+            pingpong:state.ping, flip:state.flip,
+            anchor:state.anchor, baseline:state.baseline});
+  map.sort((a,b) => a.from - b.from);
+  $('animName').value = ''; renderMap();
+};
+$('animName').addEventListener('keydown', e => { if(e.key === 'Enter') $('addBtn').click(); });
+
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function buildExport(){
+  const obj = {
+    sheet: sheetName, sheetWidth: img?img.width:0, sheetHeight: img?img.height:0,
+    frameWidth: FW, frameHeight: FH, columns: COLS, rows: ROWS, frames: COUNT,
+    anchorX: ANCHOR_X, floorY: FLOOR_Y, legDepth: state.legDepth,
+    animations: {}
+  };
+  const save = {a:state.anchor, b:state.baseline};
+  map.forEach(m => {
+    const e = {from:m.from, to:m.to, fps:m.fps, pingpong:m.pingpong,
+               flip:m.flip, anchor:m.anchor, lockBaseline:m.baseline};
+    if(state.offsets){
+      state.anchor = m.anchor; state.baseline = m.baseline;
+      e.offsets = [];
+      for(let n=m.from; n<=m.to; n++){ const o = offsetFor(n); e.offsets.push([o.dx, o.dy]); }
+    }
+    obj.animations[m.name] = e;
+  });
+  state.anchor = save.a; state.baseline = save.b;
+  return obj;
+}
+
+function renderMap(){
+  const body = $('mapBody'); body.innerHTML = '';
+  $('mapEmpty').style.display = map.length ? 'none' : 'block';
+  map.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><b>' + esc(m.name) + '</b></td>' +
+      '<td class="num">' + m.from + '–' + m.to + '</td>' +
+      '<td class="num">' + m.fps + '</td>' +
+      '<td>' + (m.pingpong ? 'ping-pong' : 'loop') + (m.flip ? ', flipped' : '') + '</td>';
+    const td = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.className = 'kill'; btn.textContent = 'remove';
+    btn.onclick = ev => { ev.stopPropagation(); map = map.filter(x => x !== m); renderMap(); };
+    td.appendChild(btn); tr.appendChild(td);
+    tr.onclick = () => {
+      state.fps = m.fps; $('fps').value = m.fps; $('fpsVal').textContent = m.fps + ' fps';
+      state.ping = m.pingpong;
+      $('pingBtn').textContent = 'Ping-pong: ' + (m.pingpong ? 'on' : 'off');
+      $('pingBtn').classList.toggle('on', m.pingpong);
+      state.flip = m.flip;
+      $('flipBtn').textContent = 'Flip X: ' + (m.flip ? 'on' : 'off');
+      $('flipBtn').classList.toggle('on', m.flip);
+      state.anchor = m.anchor;
+      [...$('anchorBtns').children].forEach(x => x.classList.toggle('on', x.dataset.a === m.anchor));
+      state.baseline = m.baseline;
+      $('baseBtn').textContent = 'Lock baseline: ' + (m.baseline ? 'on' : 'off');
+      $('baseBtn').classList.toggle('on', m.baseline);
+      setRange(m.from, m.to);
+    };
+    body.appendChild(tr);
+  });
+  $('out').textContent = JSON.stringify(buildExport(), null, 2);
+}
+
+$('copyBtn').onclick = async e => {
+  try { await navigator.clipboard.writeText($('out').textContent); e.target.textContent = 'Copied'; }
+  catch(err){ e.target.textContent = 'Select the text above'; }
+  setTimeout(() => { e.target.textContent = 'Copy JSON'; }, 1400);
+};
+$('dlBtn').onclick = () => {
+  const blob = new Blob([$('out').textContent], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (sheetName.replace(/\.[^.]+$/,'') || 'sprite') + '.frames.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+loadFromURL(DEFAULT_SHEET, DEFAULT_SHEET.split('/').pop());
+</script>
+</body>
+</html>

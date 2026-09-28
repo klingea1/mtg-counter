@@ -22,7 +22,7 @@ if not defined PY call :probe python
 if not defined PY call :probe python3
 
 if defined PY (
-    "%PY%" server.py
+    "%PY%" server.py %*
     goto :end
 )
 

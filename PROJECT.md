@@ -714,6 +714,15 @@ Roughly in build order, for context on decisions already made:
     flag). It's icon-sized on purpose: a full "Goblin: on" label reached
     into the top of the +1 tap zone, and `test_tabletop.py`'s +1 tap landed
     on it. Keep anything added to that corner as small.
+- One server per port on Windows: `ThreadingHTTPServer` used to set
+  `allow_reuse_address`, which on Windows lets a second server bind a port
+  that's already being listened on, silently. Double-clicking `start.bat`
+  twice gave two servers on :8000 with two separate tables, and phones
+  split between them at random. Windows now binds with
+  `SO_EXCLUSIVEADDRUSE`, so the second copy fails with a plain message
+  saying the counter is probably already running. Verified that a
+  restart straight after stopping still binds. `start.bat` passes its
+  arguments through, so `start.bat 8001` picks another port.
   - **Rendering** is a CSS sprite: one 72×64 cell as a background, scaled
     2× with `image-rendering:pixelated`, `pointer-events:none` so it never
     blocks the life tap zones, z-index 1 so it walks behind opponent cards.

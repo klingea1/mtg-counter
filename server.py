@@ -431,7 +431,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
-    allow_reuse_address = True
+    # On Windows SO_REUSEADDR means something else: it lets a second server bind
+    # a port another server is already listening on, with no error. Two copies
+    # then split the phones between two separate tables. Windows gets exclusive
+    # use instead, so a second copy fails and says so. Elsewhere it only allows
+    # a quick restart after stopping, which is what we want.
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 # ---------------------------------------------------------------------------
@@ -755,7 +765,22 @@ def main():
     threading.Thread(target=mdns_serve_forever, daemon=True).start()
     MDNS_READY.wait(2.0)
 
-    with ThreadingHTTPServer(("0.0.0.0", PORT), Handler) as httpd:
+    try:
+        server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    except OSError as exc:
+        print("")
+        print(f" Could not start on port {PORT}: {exc.strerror or exc}")
+        print("")
+        print(" Most likely MTG Counter is already running in another window.")
+        print(" Use that one, or close it and start again.")
+        print("")
+        print(" If something else needs this port, pick another number:")
+        print(f"   start.bat {PORT + 1}        (Windows)")
+        print(f"   ./start.sh {PORT + 1}       (Mac/Linux)")
+        print(f" and use :{PORT + 1} instead of :{PORT} in the address on every phone.")
+        sys.exit(1)
+
+    with server as httpd:
         print("=" * 52)
         print(" MTG Counter is running")
         print("=" * 52)

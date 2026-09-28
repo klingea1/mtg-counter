@@ -27,16 +27,26 @@ trademark of Wizards of the Coast LLC.
 
 ## Running it (Windows)
 
+You need a 64-bit Windows 10 or 11 computer on the same wifi as the phones.
+
 The easiest way is the **ready-to-run** download: grab
-`MTG-Counter-Windows.zip` from this repo's **Releases** page. There's
-nothing to install:
+`MTG-Counter-Windows.zip` from the
+[latest release](https://github.com/klingea1/mtg-counter/releases/latest).
+There's nothing to install:
 
 1. Right-click the zip, choose **Extract All**, and open the extracted
    folder. Don't skip this — Windows lets you look inside a zip without
    unpacking it, and nothing will run from in there.
 2. Double-click **start.bat**.
-3. A console window opens with a QR code and the addresses. Leave that
+3. Windows will probably warn you, because the file came from the
+   internet and isn't signed by a company. If you see **"Windows
+   protected your PC"**, click **More info**, then **Run anyway**. If you
+   see **"Open File – Security Warning"**, click **Run**. This happens
+   the first time only.
+4. A console window opens with a QR code and the addresses. Leave that
    window open; it *is* the server. Closing it stops the game.
+5. The first time, Windows Firewall may ask whether to allow Python.
+   Allow it on **Private** networks, or the phones can't connect.
 
 That version carries its own copy of Python in the `python` folder, so
 it doesn't touch anything else on the computer and doesn't need admin
@@ -44,21 +54,47 @@ rights. Nothing is installed and nothing is left behind if you delete
 the folder.
 
 If you cloned the repo or downloaded the source (no `python` folder), you'll
-need [Python](https://www.python.org/downloads/) installed first — check
-**"Add python.exe to PATH"** during setup, as it's easy to miss and
-nothing works without it. Then double-click **start.bat** the same way.
+need [Python](https://www.python.org/downloads/) 3.8 or newer installed
+first — check **"Add python.exe to PATH"** during setup, as it's easy to
+miss and nothing works without it. Then double-click **start.bat** the
+same way.
+
+**If it says the port is already in use**, the counter is most likely
+already running in another console window: use that one, or close it and
+start again. If some other program needs port 8000, start on a different
+port by opening a Command Prompt in the folder and running
+`start.bat 8001`, then use `:8001` instead of `:8000` in the address on
+every phone.
 
 ## Running it (Mac/Linux)
 
-```
-./start.sh
-```
+There's no ready-to-run download for Mac or Linux; you run it from the
+source with your own Python.
 
-or directly:
+1. Get the files: download **Source code (zip)** from the
+   [latest release](https://github.com/klingea1/mtg-counter/releases/latest)
+   and unzip it, or `git clone https://github.com/klingea1/mtg-counter.git`.
+2. Check you have Python 3.8 or newer: run `python3 --version` in
+   Terminal. On a Mac without it, that command offers to install Apple's
+   command line developer tools, which include Python. Say yes, wait for
+   it to finish, and run the check again. On Linux, install `python3`
+   from your package manager if it's missing.
+3. In Terminal, go to the folder and start it:
 
-```
-python3 server.py
-```
+   ```
+   cd path/to/mtg-counter
+   bash start.sh
+   ```
+
+   (`./start.sh` also works if the file kept its permissions through the
+   unzip; `bash start.sh` always does.) You can also run
+   `python3 server.py` directly.
+4. On a Mac, the first time, macOS may ask whether Python should accept
+   incoming network connections. Click **Allow**, or the phones can't
+   connect.
+
+Leave the Terminal window open while you play; press **Ctrl+C** to stop.
+To use a port other than 8000, add it to the end: `bash start.sh 8001`.
 
 ## Connecting phones
 

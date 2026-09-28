@@ -63,6 +63,15 @@ Write-Host "Copying app files..."
 foreach ($f in $AppFiles) { Copy-Item (Join-Path $Root $f) -Destination $Staging }
 foreach ($d in $AppDirs)  { Copy-Item (Join-Path $Root $d) -Destination $Staging -Recurse }
 
+# cmd.exe can mis-handle labels and GOTO in a batch file with LF-only line
+# endings, and start.bat relies on both. .gitattributes gives .bat files CRLF
+# on checkout, but an editor can save LF over that in the working copy, which
+# is what gets zipped. Force CRLF on the way into the bundle regardless.
+Get-ChildItem $Staging -Filter *.bat | ForEach-Object {
+    $text = [IO.File]::ReadAllText($_.FullName) -replace "`r?`n", "`r`n"
+    [IO.File]::WriteAllText($_.FullName, $text)
+}
+
 Write-Host "Zipping..."
 if (Test-Path $OutZip) { Remove-Item $OutZip -Force }
 Compress-Archive -Path $Staging -DestinationPath $OutZip -CompressionLevel Optimal

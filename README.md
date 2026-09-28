@@ -347,7 +347,7 @@ anyway (see above), which is the one to use once somebody's in.
   the wifi.
 - `start.bat` / `start.sh`: one-click launchers for Windows / Mac/Linux
 - `assets/`: images for the app (the Tabletop View goblin). These have
-  their own licences, listed in `assets/CREDITS.md`.
+  their own licenses, listed in `assets/CREDITS.md`.
 - `python\`: only in the ready-to-run download, a self-contained copy
   of Python. Safe to ignore; delete the whole folder to uninstall.
 
@@ -359,8 +359,8 @@ For people working on the code:
 - `tools/sprite-inspector/`: a standalone tool for working on sprite
   sheets. Not part of the app.
 
-## Licence
+## License
 
 The code is MIT licensed, see `LICENSE`. The art in `assets/` is not
-covered by that licence; see `assets/CREDITS.md` for each file's licence
+covered by that license; see `assets/CREDITS.md` for each file's license
 and attribution.

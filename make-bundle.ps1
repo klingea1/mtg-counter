@@ -21,7 +21,7 @@ $Url      = "https://www.python.org/ftp/python/$Version/python-$Version-embed-am
 # maintainer material and stay out.
 $AppFiles = @("index.html", "server.py", "start.bat", "README.md", "LICENSE")
 # Folders copied whole. assets/ carries its own CREDITS.md, which has to travel
-# with the art for the CC-BY licence.
+# with the art for the CC-BY license.
 $AppDirs  = @("assets")
 
 $Root    = Split-Path -Parent $MyInvocation.MyCommand.Path

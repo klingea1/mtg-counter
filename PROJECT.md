@@ -39,7 +39,7 @@ embeddable runtime (see Distribution below):
 - **`make-bundle.ps1` / `make-bundle.bat`** — build tooling, not part of the
   app. Produces the ready-to-run zip. See Distribution below.
 - **`assets/`** — images the app loads. Currently just the goblin sprite
-  sheet for the table pet. Art here has its own licence, recorded
+  sheet for the table pet. Art here has its own license, recorded
   in `assets/CREDITS.md`; anything added to this folder needs an entry there.
 - **`tools/`** — standalone developer tools, not part of the app and not
   served by `server.py`. `tools/sprite-inspector/` auditions sprite sheet
@@ -586,7 +586,7 @@ Roughly in build order, for context on decisions already made:
   doing and is documented in the README).
 - Static allowlist and public repo: the server stopped serving the whole
   folder (see "What the server will serve"), the sprite sheet moved into
-  `assets/` with its CC-BY credits, and the project got an MIT licence.
+  `assets/` with its CC-BY credits, and the project got an MIT license.
 - Creature Counters: unnamed counters, 2–3 typical per player, broadcast to
   the table but tucked behind the same tap-to-expand as mana/tokens (not on
   the collapsed card) — deliberately lower-touch than Tokens (no name
